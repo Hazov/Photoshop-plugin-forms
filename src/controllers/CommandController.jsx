@@ -19,8 +19,8 @@ export class CommandController {
             title: id,
             resize: "none",
             size: {
-                width: 480,
-                height: 320
+                width: 640,
+                height: 480
             }
         }, dialogOpts);
         [ "run" ].forEach(fn => this[fn] = this[fn].bind(this));
