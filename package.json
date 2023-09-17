@@ -27,6 +27,8 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "@spectrum-web-components/dropdown": "^0.10.1",
+    "@spectrum-web-components/search": "^0.38.0",
     "mobx-react-lite": "^4.0.4",
     "react": "^16.8.6",
     "react-dom": "^16.8.6"

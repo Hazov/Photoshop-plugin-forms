@@ -24,10 +24,14 @@
     font-size: 29px;
 }
 
-.searchFormsBtn{
+#searchFormsBtn{
     width: 20%;
     height: 35px;
 
+}
+
+.allFormsMenu{
+    position: absolute;
 }
 
 @media (prefers-color-scheme: darkest) {
