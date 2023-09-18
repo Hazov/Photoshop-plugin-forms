@@ -27,7 +27,10 @@
 #searchFormsBtn{
     width: 20%;
     height: 35px;
+}
 
+#prevCategoryBtn{
+    margin-top: 15px;
 }
 
 .allFormsMenu{
