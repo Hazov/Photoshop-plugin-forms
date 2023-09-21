@@ -33,8 +33,86 @@
     margin-top: 15px;
 }
 
+#formList{
+    overflow: auto;
+    height: 160px;
+    margin-top: 15px;
+    border-radius: 10px;
+    background-color: #252525;
+    width: 100%;
+}
+
+#initials{
+    display: flex;
+    justify-content: center;
+}
+
+#initialInput{
+    width: 50%;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+.searchInput{
+    width: 100%;
+}
+
+.formItems{
+    width: 260px;
+}
+#mainTitle{
+
+}
+
+#flex-box{
+    display: flex;
+    justify-content: space-between;
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
 .allFormsMenu{
     position: absolute;
+}
+
+#flexContainerForViews{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.flex{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#formItemView img{
+    width: 100px;
+}
+
+#signsItemsView {
+    width: 100%;
+}
+
+#medalsItemsView{
+    width: 100%;
+}
+
+.itemCell{
+    margin-right: 5px;
+    margin-top: 3px;
+    display: inline;
+    width: 30px;
+    height: 30px;
+    border: 1px black solid;
+}
+
+
+h1,h2{
+    color:white;
+    text-align: center;
 }
 
 @media (prefers-color-scheme: darkest) {
