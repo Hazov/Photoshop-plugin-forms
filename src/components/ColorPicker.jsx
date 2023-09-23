@@ -261,10 +261,13 @@ export const ColorPicker = () => {
                             <sp-button>Сохранить</sp-button>
                         </div>
                         <div id="flex-box">
+                            {/*СПИСОК ЗНАЧКОВ*/}
                             <div className={'formItems'}>
                                 <h2>Значки</h2>
+                                {/*поиск*/}
                                 <sp-textfield onInput={searchSigns} class ="searchInput" type="search">
                                 </sp-textfield>
+                                {/*список*/}
                                 <sp-card id="formList">
                                     <sp-menu>
                                         {filteredSigns.map((sign, index) => {
@@ -276,6 +279,7 @@ export const ColorPicker = () => {
                                         })}
                                     </sp-menu>
                                 </sp-card>
+                                {/*ВЫБРАННЫЕ ЗНАЧКИ*/}
                                 <div id="signsItemsView" className={'flex'}>
                                     <div className={'wrapper'}>
                                         {util.repeatTimes(2).map(signRowIndex => {
@@ -293,10 +297,13 @@ export const ColorPicker = () => {
                                     </div>
                                 </div>
                             </div>
+                            {/*СПИСОК МЕДАЛЕЙ*/}
                             <div className={'formItems'}>
                                 <h2>Медали</h2>
+                                {/*поиск*/}
                                 <sp-textfield onInput={searchMedals} class ="searchInput" type="search">
                                 </sp-textfield>
+                                {/*список*/}
                                 <sp-card id="formList">
                                     <sp-menu>
                                         {filteredMedals.map((medal, index) => {
@@ -308,6 +315,7 @@ export const ColorPicker = () => {
                                         })}
                                     </sp-menu>
                                 </sp-card>
+                                {/*ВЫБРАННЫЕ МЕДАЛИ*/}
                                 <div id="medalsItemsView" className={'flex'}>
                                     <div className={'wrapper'}>
                                         {util.repeatTimes(3).map(medalRowIndex => {
