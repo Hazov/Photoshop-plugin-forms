@@ -29,7 +29,7 @@ export const ColorPicker = () => {
     let [filteredMedals, setFilteredMedals] = useState([]);
     let [filteredSigns, setFilteredSigns] = useState([]);
     let [currentForm, setCurrentForm] = useState(null);
-    let [selectedMedals, setSelectedMedals] = useState([[],[],[]]);
+    let [selectedMedals, setSelectedMedals] = useState([]);
     let [selectedSigns, setSelectedSigns] = useState([]);
 
     init();
@@ -78,9 +78,10 @@ export const ColorPicker = () => {
         let imageElement = document.createElement('img');
         imageElement.src = "data:image/png;base64," + util.arrayBufferToBase64(arr);
         if(options){
-            if(options.width){
-                imageElement.width = options.width
+            for(let opt in options){
+                imageElement[opt.toLowerCase()] = options[opt];
             }
+
         }
         element.appendChild(imageElement);
     }
@@ -136,18 +137,19 @@ export const ColorPicker = () => {
     }
 
     async function addMedal(medal) {
-        let toAddRowNum = defineRowToAdd();
-        let toAddCellNum = defineCellToAdd(toAddRowNum);
-        let cellElement = document.getElementById('medal' + toAddRowNum + '-' + toAddCellNum);
+        let coord = defineCoordToAdd(selectedMedals);
+
+        // let toAddCellNum = defineCellToAdd(toAddRowNum)
 
         let medalsFolder = await fetchManager.getMedalsFolder();
         let file = await medalsFolder.getEntry(medal.fileName);
-        let bytes = await file.read({format: formats.binary});
+        let bytes = await file.read({format: formats.binary})
 
-        selectedMedals[toAddRowNum][toAddCellNum] = bytes;
+        let fileObj = {bytes: bytes, file64: "data:image/png;base64," + util.arrayBufferToBase64(bytes)}
 
-        renderImageInElement(bytes, cellElement, {width: '30px'});
-
+        let newSelectedMedals = JSON.parse(JSON.stringify(selectedMedals));
+        newSelectedMedals[coord.row][coord.cell] = fileObj;
+        setSelectedMedals(newSelectedMedals)
 
     }
 
@@ -163,18 +165,19 @@ export const ColorPicker = () => {
         return toAddCell;
     }
 
-    function defineRowToAdd(){
-        let toAddRow = 0;
-        for(let row = 0; row < selectedMedals.length; row++){
-            let rowCells = selectedMedals[row];
-            let lastItemInRow = rowCells[rowCells.length - 1];
-            if(lastItemInRow){
-                toAddRow++;
-            } else {
-                break;
+    function defineCoordToAdd(array){
+        let toAddRow;
+        let toAddCell;
+        for(let row = 0; row < array.length; row++){
+            let rowCells = array[row];
+            let emptyCellIndex = rowCells.indexOf(null);
+            if(emptyCellIndex !== -1){
+               toAddRow = row;
+               toAddCell = emptyCellIndex;
+               break;
             }
         }
-        return toAddRow;
+        return {row: toAddRow, cell: toAddCell}
     }
 
     function addSign(sign){
@@ -183,17 +186,11 @@ export const ColorPicker = () => {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
+    function deleteMedal(medalRowIndex, medalCellIndex) {
+        let newSelectedMedals = JSON.parse(JSON.stringify(selectedMedals));
+        newSelectedMedals[medalRowIndex][medalCellIndex] = null;
+        setSelectedMedals(newSelectedMedals)
+    }
 
     return (
         <div className="pluginBody">
@@ -318,13 +315,26 @@ export const ColorPicker = () => {
                                 {/*ВЫБРАННЫЕ МЕДАЛИ*/}
                                 <div id="medalsItemsView" className={'flex'}>
                                     <div className={'wrapper'}>
-                                        {util.repeatTimes(3).map(medalRowIndex => {
+                                        {selectedMedals.map((medalRowArray, medalRowIndex) => {
                                             return (
                                                 <div className="itemRow flex" key={'medalRow' + medalRowIndex}>
-                                                    {util.repeatTimes(5).map(medalCellIndex => {
-                                                        return (
-                                                            <div id={"medal" + medalRowIndex + "-" + medalCellIndex} className={'itemCell'} key={'medalRow' + medalCellIndex}></div>
-                                                        )
+                                                    {medalRowArray.map((medal, medalCellIndex) => {
+                                                        if(medal){
+                                                            return (
+
+                                                                <div id={"medal" + medalRowIndex + "-" + medalCellIndex} className={'itemCell'} key={'medalRow' + medalCellIndex}>
+                                                                    <div onClick={() => deleteMedal(medalRowIndex, medalCellIndex)}>
+                                                                        <img className={'img30'} src={medal.file64} alt=""/>
+                                                                    </div>
+
+                                                                </div>
+                                                            )
+                                                        } else {
+                                                            return (
+                                                                <div id={"medal" + medalRowIndex + "-" + medalCellIndex} className={'itemCell'} key={'medalRow' + medalCellIndex}></div>
+                                                            )
+                                                        }
+
                                                     })}
                                                 </div>
                                             )
