@@ -1,4 +1,4 @@
-import React, {useState} from "react";
+import React, {forwardRef, useState} from "react";
 
 import "./ColorPicker.css"
 
@@ -12,6 +12,11 @@ const app = photoshop.app;
 const storage = uxp.storage;
 const imaging = photoshop.imaging;
 const formats = storage.formats
+
+const DEFAULT_MEDAL_ROWS = 3;
+const DEFAULT_MEDALS_IN_ROW = 5;
+const DEFAULT_SIGN_ROWS = 2;
+const DEFAULT_SIGNS_IN_ROW = 4;
 let currentFormFolder = ['allFiles','forms']
 let isInit = false;
 
@@ -24,13 +29,30 @@ export const ColorPicker = () => {
     let [filteredMedals, setFilteredMedals] = useState([]);
     let [filteredSigns, setFilteredSigns] = useState([]);
     let [currentForm, setCurrentForm] = useState(null);
+    let [selectedMedals, setSelectedMedals] = useState([[],[],[]]);
+    let [selectedSigns, setSelectedSigns] = useState([]);
+
     init();
 
     async function init(){
         if(!isInit){
             fetchManager.fetchFormCategory(await fileManager.getFolderByPath(currentFormFolder)).then(resolve => setFormCategory(resolve));
+            initSelectedMedals();
             isInit = true
         }
+    }
+
+    function initSelectedMedals(){
+        let rowsArray = [];
+
+        for(let i = 0; i < DEFAULT_MEDAL_ROWS; i++){
+            let cellsArray = [];
+            for (let j = 0; j < DEFAULT_MEDALS_IN_ROW; j++) {
+                cellsArray.push(null);
+            }
+            rowsArray.push(cellsArray);
+        }
+        setSelectedMedals(rowsArray);
     }
     // const createNewLayerInApp = async (evt) =>  {
     //     let activeDocument = app.activeDocument;
@@ -52,9 +74,14 @@ export const ColorPicker = () => {
         });
     }
 
-    async function renderImageInElement(arr, element){
+    async function renderImageInElement(arr, element, options){
         let imageElement = document.createElement('img');
         imageElement.src = "data:image/png;base64," + util.arrayBufferToBase64(arr);
+        if(options){
+            if(options.width){
+                imageElement.width = options.width
+            }
+        }
         element.appendChild(imageElement);
     }
 
@@ -106,6 +133,52 @@ export const ColorPicker = () => {
         let bytes = await file.read({format: formats.binary});
         let formItemViewElement = document.getElementById('formItemView');
         renderImageInElement(bytes, formItemViewElement);
+    }
+
+    async function addMedal(medal) {
+        let toAddRowNum = defineRowToAdd();
+        let toAddCellNum = defineCellToAdd(toAddRowNum);
+        let cellElement = document.getElementById('medal' + toAddRowNum + '-' + toAddCellNum);
+
+        let medalsFolder = await fetchManager.getMedalsFolder();
+        let file = await medalsFolder.getEntry(medal.fileName);
+        let bytes = await file.read({format: formats.binary});
+
+        selectedMedals[toAddRowNum][toAddCellNum] = bytes;
+
+        renderImageInElement(bytes, cellElement, {width: '30px'});
+
+
+    }
+
+    function defineCellToAdd(rowNum){
+        let toAddCell = selectedMedals[rowNum].length - 1;
+        for(let cellNum = selectedMedals[rowNum].length - 1; cellNum >= 0; cellNum--){
+            if(!selectedMedals[rowNum][cellNum]){
+                toAddCell = cellNum;
+            } else {
+                break;
+            }
+        }
+        return toAddCell;
+    }
+
+    function defineRowToAdd(){
+        let toAddRow = 0;
+        for(let row = 0; row < selectedMedals.length; row++){
+            let rowCells = selectedMedals[row];
+            let lastItemInRow = rowCells[rowCells.length - 1];
+            if(lastItemInRow){
+                toAddRow++;
+            } else {
+                break;
+            }
+        }
+        return toAddRow;
+    }
+
+    function addSign(sign){
+
     }
 
 
@@ -194,10 +267,10 @@ export const ColorPicker = () => {
                                 </sp-textfield>
                                 <sp-card id="formList">
                                     <sp-menu>
-                                        {filteredSigns.map((form, index) => {
+                                        {filteredSigns.map((sign, index) => {
                                             return (
-                                                <sp-menu-item onClick={() => toSignsAndMedals(form)} className={'searchFormsBtn'} key={form.name + index}>
-                                                    {form.name}
+                                                <sp-menu-item onClick={() => addSign(sign)} className={'searchFormsBtn'} key={sign.name + index}>
+                                                    {sign.name}
                                                 </sp-menu-item>
                                             )
                                         })}
@@ -226,10 +299,10 @@ export const ColorPicker = () => {
                                 </sp-textfield>
                                 <sp-card id="formList">
                                     <sp-menu>
-                                        {filteredMedals.map((form, index) => {
+                                        {filteredMedals.map((medal, index) => {
                                             return (
-                                                <sp-menu-item onClick={() => toSignsAndMedals(form)} className={'searchFormsBtn'} key={form.name + index}>
-                                                    {form.name}
+                                                <sp-menu-item onClick={() => addMedal(medal)} className={'searchFormsBtn'} key={medal.name + index}>
+                                                    {medal.name}
                                                 </sp-menu-item>
                                             )
                                         })}
