@@ -1,9 +1,13 @@
 import React, {useState} from "react";
 
-import "./ColorPicker.css";
+import "./ColorPicker.css"
+
 
 const photoshop = require('photoshop');
-const uxp = require('uxp');
+const uxp = require('uxp')
+const fileManager = require('./fileManager.js').fileManager;
+const fetchManager = require('./fetchManager.js').fetchManager;
+const util = require('./util.js').util;
 const app = photoshop.app;
 const storage = uxp.storage;
 const imaging = photoshop.imaging;
@@ -22,9 +26,9 @@ export const ColorPicker = () => {
     let [currentForm, setCurrentForm] = useState(null);
     init();
 
-    function init(){
+    async function init(){
         if(!isInit){
-            fetchFormCategory().then(resolve => setFormCategory(resolve));
+            fetchManager.fetchFormCategory(await fileManager.getFolderByPath(currentFormFolder)).then(resolve => setFormCategory(resolve));
             isInit = true
         }
     }
@@ -33,70 +37,14 @@ export const ColorPicker = () => {
     //     execute(() => activeDocument.createLayer({name: "myLayer", opacity: 80, blendMode: "colorDodge" }));
     // }
 
-    async function getCurrentFolder(){
-        return getFolderByPath(currentFormFolder);
-        let folder = await uxp.storage.localFileSystem.getPluginFolder();
-        for(let p of currentFormFolder){
-            folder = await folder.getEntry(p)
-        }
-    }
 
-    async function fetchFormCategory(){
-        let folder = await getCurrentFolder();
-        let entries = await folder.getEntries();
-        let infoFile = entries.find(entry => entry.name.includes('.info'));
-        if(infoFile){
-            let title = infoFile.name.split('.info')[0];
-            let categoryItems = entries.filter(entry => entry.isFolder).map(folder => folder.name);
-            return {title: title, categoryItems: categoryItems };
-        } else{
-            let formItems = entries.filter(entry => entry.isFile).map(file => {return {fileName: file.name, name: file.name.split('.')[0]}});
-            return {title: null, categoryItems: null, formItems: formItems}
-        }
-    }
-    async function fetchMedals(){
-        let medalsFolder = await getMedalsFolder();
-        let entries = await medalsFolder.getEntries();
-        return entries.filter(entry => entry.isFile).map(file => {return {fileName: file.name, name: file.name.split('.')[0]}});
-    }
-
-    async function fetchSigns(){
-        let signsFolder = await getSignsFolder();
-        let entries = await signsFolder.getEntries();
-        return entries.filter(entry => entry.isFile).map(file => {return {fileName: file.name, name: file.name.split('.')[0]}});
-    }
-
-    function getSignsFolder() {
-        let signsPath = 'allFiles/signs';
-        return getFolderByPath(signsPath);
-    }
-
-    function getMedalsFolder(){
-        let medalsPath = 'allFiles/medals';
-        return getFolderByPath(medalsPath);
-    }
-
-    async function getFolderByPath(path){
-        let asArrayPath;
-        if(path.constructor === Array){
-            asArrayPath = path;
-        } else {
-            asArrayPath = path.split('/');
-        }
-        let folder = await uxp.storage.localFileSystem.getPluginFolder();
-        for(let p of asArrayPath){
-            folder = await folder.getEntry(p)
-        }
-        return folder;
-    }
-
-    function prevCategory(){
+    async function prevCategory(){
         currentFormFolder.pop();
-        fetchFormCategory().then(resolve => setFormCategory(resolve));
+        fetchManager.fetchFormCategory(await fileManager.getFolderByPath(currentFormFolder)).then(resolve => setFormCategory(resolve));
     }
-    function nextCategory(title, item) {
+    async function nextCategory(title, item) {
         currentFormFolder.push(item);
-        fetchFormCategory().then(resolve => {
+        fetchManager.fetchFormCategory(await fileManager.getFolderByPath(currentFormFolder)).then(resolve => {
             setFormCategory(resolve);
             if(resolve.formItems){
                 setFilteredFormItems(resolve.formItems);
@@ -106,7 +54,7 @@ export const ColorPicker = () => {
 
     async function renderImageInElement(arr, element){
         let imageElement = document.createElement('img');
-        imageElement.src = "data:image/png;base64," + _arrayBufferToBase64(arr);
+        imageElement.src = "data:image/png;base64," + util.arrayBufferToBase64(arr);
         element.appendChild(imageElement);
     }
 
@@ -114,15 +62,6 @@ export const ColorPicker = () => {
         return await photoshop.core.executeAsModal(pluginFunc);
     }
 
-    function _arrayBufferToBase64( buffer ) {
-        var binary = '';
-        var bytes = new Uint8Array( buffer );
-        var len = bytes.byteLength;
-        for (var i = 0; i < len; i++) {
-            binary += String.fromCharCode( bytes[ i ] );
-        }
-        return window.btoa( binary );
-    }
 
     function search(e, array){
         if(e.target && e.target.value && array){
@@ -154,28 +93,21 @@ export const ColorPicker = () => {
 
     async function toSignsAndMedals(form){
         setCurrentForm(form)
-        fetchMedals().then(resolve => {
+        fetchManager.fetchMedals().then(resolve => {
             setMedals(resolve);
             setFilteredMedals(resolve)
         });
-        fetchSigns().then(resolve => {
+        fetchManager.fetchSigns().then(resolve => {
             setSigns(resolve);
             setFilteredSigns(resolve)
         });
-        let folder = await getCurrentFolder();
+        let folder = await fileManager.getFolderByPath(currentFormFolder);
         let file = await folder.getEntry(form.fileName);
         let bytes = await file.read({format: formats.binary});
         let formItemViewElement = document.getElementById('formItemView');
         renderImageInElement(bytes, formItemViewElement);
     }
 
-    function repeatTimes(size){
-        let fakeArray = [];
-        for (let i = 0; i < size; i++){
-            fakeArray[i] = i;
-        }
-        return fakeArray;
-    }
 
 
 
@@ -273,10 +205,10 @@ export const ColorPicker = () => {
                                 </sp-card>
                                 <div id="signsItemsView" className={'flex'}>
                                     <div className={'wrapper'}>
-                                        {repeatTimes(2).map(signRowIndex => {
+                                        {util.repeatTimes(2).map(signRowIndex => {
                                             return (
                                                 <div className="itemRow flex" key={'signRowIndex' + signRowIndex}>
-                                                    {repeatTimes(4).map(signCellIndex => {
+                                                    {util.repeatTimes(4).map(signCellIndex => {
                                                         return (
                                                             <div id={"sign" + signRowIndex + "-" + signCellIndex} className={'itemCell'} key={'signCellIndex' + signCellIndex}></div>
                                                         )
@@ -305,10 +237,10 @@ export const ColorPicker = () => {
                                 </sp-card>
                                 <div id="medalsItemsView" className={'flex'}>
                                     <div className={'wrapper'}>
-                                        {repeatTimes(3).map(medalRowIndex => {
+                                        {util.repeatTimes(3).map(medalRowIndex => {
                                             return (
                                                 <div className="itemRow flex" key={'medalRow' + medalRowIndex}>
-                                                    {repeatTimes(5).map(medalCellIndex => {
+                                                    {util.repeatTimes(5).map(medalCellIndex => {
                                                         return (
                                                             <div id={"medal" + medalRowIndex + "-" + medalCellIndex} className={'itemCell'} key={'medalRow' + medalCellIndex}></div>
                                                         )
