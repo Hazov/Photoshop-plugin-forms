@@ -37,22 +37,22 @@ export const ColorPicker = () => {
     async function init(){
         if(!isInit){
             fetchManager.fetchFormCategory(await fileManager.getFolderByPath(currentFormFolder)).then(resolve => setFormCategory(resolve));
-            initSelectedMedals();
+            initSelectedCells(DEFAULT_MEDAL_ROWS, DEFAULT_MEDALS_IN_ROW, setSelectedMedals);
+            initSelectedCells(DEFAULT_SIGN_ROWS, DEFAULT_SIGNS_IN_ROW, setSelectedSigns);
             isInit = true
         }
     }
 
-    function initSelectedMedals(){
+    function initSelectedCells(rowSize, cellSize, setter){
         let rowsArray = [];
-
-        for(let i = 0; i < DEFAULT_MEDAL_ROWS; i++){
+        for(let i = 0; i < rowSize; i++){
             let cellsArray = [];
-            for (let j = 0; j < DEFAULT_MEDALS_IN_ROW; j++) {
+            for (let j = 0; j < cellSize; j++) {
                 cellsArray.push(null);
             }
             rowsArray.push(cellsArray);
         }
-        setSelectedMedals(rowsArray);
+        setter(rowsArray);
     }
     // const createNewLayerInApp = async (evt) =>  {
     //     let activeDocument = app.activeDocument;
@@ -139,8 +139,6 @@ export const ColorPicker = () => {
     async function addMedal(medal) {
         let coord = defineCoordToAdd(selectedMedals);
 
-        // let toAddCellNum = defineCellToAdd(toAddRowNum)
-
         let medalsFolder = await fetchManager.getMedalsFolder();
         let file = await medalsFolder.getEntry(medal.fileName);
         let bytes = await file.read({format: formats.binary})
@@ -150,19 +148,19 @@ export const ColorPicker = () => {
         let newSelectedMedals = JSON.parse(JSON.stringify(selectedMedals));
         newSelectedMedals[coord.row][coord.cell] = fileObj;
         setSelectedMedals(newSelectedMedals)
-
     }
 
-    function defineCellToAdd(rowNum){
-        let toAddCell = selectedMedals[rowNum].length - 1;
-        for(let cellNum = selectedMedals[rowNum].length - 1; cellNum >= 0; cellNum--){
-            if(!selectedMedals[rowNum][cellNum]){
-                toAddCell = cellNum;
-            } else {
-                break;
-            }
-        }
-        return toAddCell;
+    async function addSign(sign){
+        let coord = defineCoordToAdd(selectedSigns);
+
+        let signsFolder = await fetchManager.getSignsFolder();
+        let file = await signsFolder.getEntry(sign.fileName);
+        let bytes = await file.read({format: formats.binary})
+        let fileObj = {bytes: bytes, file64: "data:image/png;base64," + util.arrayBufferToBase64(bytes)}
+
+        let newSelectedSigns = JSON.parse(JSON.stringify(selectedSigns));
+        newSelectedSigns[coord.row][coord.cell] = fileObj;
+        setSelectedSigns(newSelectedSigns)
     }
 
     function defineCoordToAdd(array){
@@ -180,16 +178,19 @@ export const ColorPicker = () => {
         return {row: toAddRow, cell: toAddCell}
     }
 
-    function addSign(sign){
 
+    function deleteItemFromSelected(array, setter, rowIndex, cellIndex){
+        let newSelectedItems = JSON.parse(JSON.stringify(array));
+        newSelectedItems[rowIndex][cellIndex] = null;
+        setter(newSelectedItems)
     }
 
-
-
     function deleteMedal(medalRowIndex, medalCellIndex) {
-        let newSelectedMedals = JSON.parse(JSON.stringify(selectedMedals));
-        newSelectedMedals[medalRowIndex][medalCellIndex] = null;
-        setSelectedMedals(newSelectedMedals)
+        deleteItemFromSelected(selectedMedals, setSelectedMedals, medalRowIndex, medalCellIndex);
+    }
+
+    function deleteSign(signRowIndex, signCellIndex){
+        deleteItemFromSelected(selectedSigns, setSelectedSigns, signRowIndex, signCellIndex);
     }
 
     return (
@@ -279,18 +280,27 @@ export const ColorPicker = () => {
                                 {/*ВЫБРАННЫЕ ЗНАЧКИ*/}
                                 <div id="signsItemsView" className={'flex'}>
                                     <div className={'wrapper'}>
-                                        {util.repeatTimes(2).map(signRowIndex => {
+                                        {selectedSigns.map((signRowArray, signRowIndex) => {
                                             return (
-                                                <div className="itemRow flex" key={'signRowIndex' + signRowIndex}>
-                                                    {util.repeatTimes(4).map(signCellIndex => {
-                                                        return (
-                                                            <div id={"sign" + signRowIndex + "-" + signCellIndex} className={'itemCell'} key={'signCellIndex' + signCellIndex}></div>
-                                                        )
+                                                <div className="itemRow flex" key={'signRow' + signRowIndex}>
+                                                    {signRowArray.map((sign, signCellIndex) => {
+                                                        if(sign){
+                                                            return (
+                                                                <div id={"sign" + signRowIndex + "-" + signCellIndex} className={'itemCell'} key={'signRow' + signCellIndex}>
+                                                                    <div onClick={() => deleteSign(signRowIndex, signCellIndex)}>
+                                                                        <img className={'img30'} src={sign.file64} alt=""/>
+                                                                    </div>
+                                                                </div>
+                                                            )
+                                                        } else {
+                                                            return (
+                                                                <div id={"sign" + signRowIndex + "-" + signCellIndex} className={'itemCell'} key={'signRow' + signCellIndex}></div>
+                                                            )
+                                                        }
                                                     })}
                                                 </div>
                                             )
                                         })}
-
                                     </div>
                                 </div>
                             </div>
@@ -321,12 +331,10 @@ export const ColorPicker = () => {
                                                     {medalRowArray.map((medal, medalCellIndex) => {
                                                         if(medal){
                                                             return (
-
                                                                 <div id={"medal" + medalRowIndex + "-" + medalCellIndex} className={'itemCell'} key={'medalRow' + medalCellIndex}>
                                                                     <div onClick={() => deleteMedal(medalRowIndex, medalCellIndex)}>
                                                                         <img className={'img30'} src={medal.file64} alt=""/>
                                                                     </div>
-
                                                                 </div>
                                                             )
                                                         } else {
@@ -334,16 +342,12 @@ export const ColorPicker = () => {
                                                                 <div id={"medal" + medalRowIndex + "-" + medalCellIndex} className={'itemCell'} key={'medalRow' + medalCellIndex}></div>
                                                             )
                                                         }
-
                                                     })}
                                                 </div>
                                             )
                                         })}
-
                                     </div>
-
                                 </div>
-
                             </div>
                         </div>
 
