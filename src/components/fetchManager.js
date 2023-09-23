@@ -1,4 +1,4 @@
-const fileManager = require('./fileManager');
+const fileManager = require('./fileManager').fileManager;
 
 export const fetchManager = {
     fetchFormCategory: async (folder) => {
@@ -17,13 +17,13 @@ export const fetchManager = {
     },
 
     fetchMedals: async () => {
-        let medalsFolder = await getMedalsFolder();
+        let medalsFolder = await fetchManager.getMedalsFolder();
         let entries = await medalsFolder.getEntries();
         return entries.filter(entry => entry.isFile).map(file => {return {fileName: file.name, name: file.name.split('.')[0]}});
     },
 
     fetchSigns: async () => {
-        let signsFolder = await getSignsFolder();
+        let signsFolder = await fetchManager.getSignsFolder();
         let entries = await signsFolder.getEntries();
         return entries.filter(entry => entry.isFile).map(file => {return {fileName: file.name, name: file.name.split('.')[0]}});
     },
