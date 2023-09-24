@@ -69,11 +69,11 @@ export const ColorPicker = () => {
         });
     }
 
-    function search(e, array){
-        if(e.target && e.target.value && array){
+    function search(value, array){
+        if(value && array){
             return array
                 .filter(item => item.name.toLowerCase().replaceAll(' ','')
-                    .includes(e.target.value.toLowerCase().replaceAll(' ','')))
+                    .includes(value.toLowerCase().replaceAll(' ','')))
         } else {
             return array;
         }
@@ -81,18 +81,18 @@ export const ColorPicker = () => {
 
     function searchForms(e) {
         if(formCategory && formCategory.formItems){
-            setFilteredFormItems(search(e, formCategory.formItems));
+            setFilteredFormItems(search(e.target.value, formCategory.formItems));
         }
     }
     function searchMedals(e){
         if(medals){
-            setFilteredMedals(search(e, medals));
+            setFilteredMedals(search(e.target.value, medals));
         }
     }
 
     function searchSigns(e){
         if(signs){
-            setFilteredSigns(search(e, signs));
+            setFilteredSigns(search(e.target.value, signs));
         }
     }
 
@@ -120,7 +120,7 @@ export const ColorPicker = () => {
         let coord = defineCoordToAdd(selectedArray);
         let fileObj = await readFileObj(folder, item.fileName);
         let newSelectedItems = JSON.parse(JSON.stringify(selectedArray));
-        newSelectedItems[coord.row][coord.cell] = fileObj;
+        newSelectedItems[coord.row][coord.cell] = {...item, ...fileObj};
         setter(newSelectedItems);
 
         let inAllItemIndex = allArray.indexOf(item);
@@ -129,7 +129,7 @@ export const ColorPicker = () => {
         allSetter(allArrayCopy);
 
         let inFilteredItemIndex = filteredArray.indexOf(item);
-        let filteredArrayCopy = JSON.parse(JSON.stringify(allArray));
+        let filteredArrayCopy = JSON.parse(JSON.stringify(filteredArray));
         filteredArrayCopy.splice(inFilteredItemIndex, 1)
         filteredSetter(filteredArrayCopy)
 
@@ -160,7 +160,7 @@ export const ColorPicker = () => {
     }
 
 
-    function deleteItemFromSelected(array, setter, rowIndex, cellIndex, allArray, allSetter, filteredArray, filteredSetter){
+    function deleteItemFromSelected(array, setter, rowIndex, cellIndex, allArray, allSetter, filteredSetter, searchInputId){
         let newSelectedItems = JSON.parse(JSON.stringify(array));
         let selectedItem = JSON.parse(JSON.stringify(newSelectedItems[rowIndex][cellIndex]));
         newSelectedItems[rowIndex][cellIndex] = null;
@@ -168,22 +168,19 @@ export const ColorPicker = () => {
 
         let allArrayCopy = JSON.parse(JSON.stringify(allArray));
         allArrayCopy.push(selectedItem);
+        allArrayCopy.sort((s1, s2) => (s1.name).localeCompare(s2.name));
         allSetter(allArrayCopy);
 
-        let filteredArrayCopy = JSON.parse(JSON.stringify(filteredArray));
-        filteredArrayCopy.push(selectedItem);
-        filteredSetter(filteredArrayCopy);
-
-
-
+        let searchInputElement = document.getElementById(searchInputId);
+        filteredSetter(search(searchInputElement.value, allArrayCopy))
     }
 
     function deleteMedal(medalRowIndex, medalCellIndex) {
-        deleteItemFromSelected(selectedMedals, setSelectedMedals, medalRowIndex, medalCellIndex, medals, setMedals, filteredMedals, setFilteredMedals);
+        deleteItemFromSelected(selectedMedals, setSelectedMedals, medalRowIndex, medalCellIndex, medals, setMedals, setFilteredMedals, 'medalsSearchInput');
     }
 
     function deleteSign(signRowIndex, signCellIndex){
-        deleteItemFromSelected(selectedSigns, setSelectedSigns, signRowIndex, signCellIndex, signs, setSigns, filteredSigns, setFilteredSigns);
+        deleteItemFromSelected(selectedSigns, setSelectedSigns, signRowIndex, signCellIndex, signs, setSigns, setFilteredSigns, 'signsSearchInput');
     }
 
     // async function insertFormToPhotoshop(){
@@ -302,7 +299,7 @@ export const ColorPicker = () => {
                             <div className={'formItems'}>
                                 <h2>Значки</h2>
                                 {/*поиск*/}
-                                <sp-textfield onInput={searchSigns} class ="searchInput" type="search">
+                                <sp-textfield id="signsSearchInput" onInput={searchSigns} class ="searchInput" type="search">
                                 </sp-textfield>
                                 {/*список*/}
                                 <sp-card id="formList">
@@ -347,7 +344,7 @@ export const ColorPicker = () => {
                             <div className={'formItems'}>
                                 <h2>Медали</h2>
                                 {/*поиск*/}
-                                <sp-textfield onInput={searchMedals} class ="searchInput" type="search">
+                                <sp-textfield id="medalsSearchInput" onInput={searchMedals} class ="searchInput" type="search">
                                 </sp-textfield>
                                 {/*список*/}
                                 <sp-card id="formList">
