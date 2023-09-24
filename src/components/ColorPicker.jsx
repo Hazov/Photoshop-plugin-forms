@@ -54,11 +54,6 @@ export const ColorPicker = () => {
         }
         setter(rowsArray);
     }
-    // const createNewLayerInApp = async (evt) =>  {
-    //     let activeDocument = app.activeDocument;
-    //     execute(() => activeDocument.createLayer({name: "myLayer", opacity: 80, blendMode: "colorDodge" }));
-    // }
-
 
     async function prevCategory(){
         currentFormFolder.pop();
@@ -68,28 +63,11 @@ export const ColorPicker = () => {
         currentFormFolder.push(item);
         fetchManager.fetchFormCategory(await fileManager.getFolderByPath(currentFormFolder)).then(resolve => {
             setFormCategory(resolve);
-            if(resolve.formItems){
+            if (resolve.formItems) {
                 setFilteredFormItems(resolve.formItems);
             }
         });
     }
-
-    async function renderImageInElement(arr, element, options){
-        let imageElement = document.createElement('img');
-        imageElement.src = "data:image/png;base64," + util.arrayBufferToBase64(arr);
-        if(options){
-            for(let opt in options){
-                imageElement[opt.toLowerCase()] = options[opt];
-            }
-
-        }
-        element.appendChild(imageElement);
-    }
-
-    async function execute(pluginFunc){
-        return await photoshop.core.executeAsModal(pluginFunc);
-    }
-
 
     function search(e, array){
         if(e.target && e.target.value && array){
@@ -99,7 +77,6 @@ export const ColorPicker = () => {
         } else {
             return array;
         }
-
     }
 
     function searchForms(e) {
@@ -119,7 +96,15 @@ export const ColorPicker = () => {
         }
     }
 
+    async function readFileObj(folder, fileName){
+        let file = await folder.getEntry(fileName);
+        let bytes = await file.read({format: formats.binary});
+        return  {bytes: bytes, file64: "data:image/png;base64," + util.arrayBufferToBase64(bytes)}
+    }
+
     async function toSignsAndMedals(form){
+        let folder = await fileManager.getFolderByPath(currentFormFolder);
+        form.fileObj = await readFileObj(folder, form.fileName);
         setCurrentForm(form)
         fetchManager.fetchMedals().then(resolve => {
             setMedals(resolve);
@@ -129,38 +114,34 @@ export const ColorPicker = () => {
             setSigns(resolve);
             setFilteredSigns(resolve)
         });
-        let folder = await fileManager.getFolderByPath(currentFormFolder);
-        let file = await folder.getEntry(form.fileName);
-        let bytes = await file.read({format: formats.binary});
-        let formItemViewElement = document.getElementById('formItemView');
-        renderImageInElement(bytes, formItemViewElement);
+    }
+
+    async function addItemToCell(item, selectedArray, setter, folder, allArray, filteredArray, allSetter, filteredSetter){
+        let coord = defineCoordToAdd(selectedArray);
+        let fileObj = await readFileObj(folder, item.fileName);
+        let newSelectedItems = JSON.parse(JSON.stringify(selectedArray));
+        newSelectedItems[coord.row][coord.cell] = fileObj;
+        setter(newSelectedItems);
+
+        let inAllItemIndex = allArray.indexOf(item);
+        let allArrayCopy = JSON.parse(JSON.stringify(allArray));
+        allArrayCopy.splice(inAllItemIndex, 1);
+        allSetter(allArrayCopy);
+
+        let inFilteredItemIndex = filteredArray.indexOf(item);
+        let filteredArrayCopy = JSON.parse(JSON.stringify(allArray));
+        filteredArrayCopy.splice(inFilteredItemIndex, 1)
+        filteredSetter(filteredArrayCopy)
+
+
     }
 
     async function addMedal(medal) {
-        let coord = defineCoordToAdd(selectedMedals);
-
-        let medalsFolder = await fetchManager.getMedalsFolder();
-        let file = await medalsFolder.getEntry(medal.fileName);
-        let bytes = await file.read({format: formats.binary})
-
-        let fileObj = {bytes: bytes, file64: "data:image/png;base64," + util.arrayBufferToBase64(bytes)}
-
-        let newSelectedMedals = JSON.parse(JSON.stringify(selectedMedals));
-        newSelectedMedals[coord.row][coord.cell] = fileObj;
-        setSelectedMedals(newSelectedMedals)
+        addItemToCell(medal, selectedMedals, setSelectedMedals, await fetchManager.getMedalsFolder(), medals, filteredMedals, setMedals, setFilteredMedals);
     }
 
     async function addSign(sign){
-        let coord = defineCoordToAdd(selectedSigns);
-
-        let signsFolder = await fetchManager.getSignsFolder();
-        let file = await signsFolder.getEntry(sign.fileName);
-        let bytes = await file.read({format: formats.binary})
-        let fileObj = {bytes: bytes, file64: "data:image/png;base64," + util.arrayBufferToBase64(bytes)}
-
-        let newSelectedSigns = JSON.parse(JSON.stringify(selectedSigns));
-        newSelectedSigns[coord.row][coord.cell] = fileObj;
-        setSelectedSigns(newSelectedSigns)
+        addItemToCell(sign, selectedSigns, setSelectedSigns, await fetchManager.getSignsFolder(), signs, filteredSigns, setSigns, setFilteredSigns)
     }
 
     function defineCoordToAdd(array){
@@ -179,19 +160,75 @@ export const ColorPicker = () => {
     }
 
 
-    function deleteItemFromSelected(array, setter, rowIndex, cellIndex){
+    function deleteItemFromSelected(array, setter, rowIndex, cellIndex, allArray, allSetter, filteredArray, filteredSetter){
         let newSelectedItems = JSON.parse(JSON.stringify(array));
+        let selectedItem = JSON.parse(JSON.stringify(newSelectedItems[rowIndex][cellIndex]));
         newSelectedItems[rowIndex][cellIndex] = null;
-        setter(newSelectedItems)
+        setter(newSelectedItems);
+
+        let allArrayCopy = JSON.parse(JSON.stringify(allArray));
+        allArrayCopy.push(selectedItem);
+        allSetter(allArrayCopy);
+
+        let filteredArrayCopy = JSON.parse(JSON.stringify(filteredArray));
+        filteredArrayCopy.push(selectedItem);
+        filteredSetter(filteredArrayCopy);
+
+
+
     }
 
     function deleteMedal(medalRowIndex, medalCellIndex) {
-        deleteItemFromSelected(selectedMedals, setSelectedMedals, medalRowIndex, medalCellIndex);
+        deleteItemFromSelected(selectedMedals, setSelectedMedals, medalRowIndex, medalCellIndex, medals, setMedals, filteredMedals, setFilteredMedals);
     }
 
     function deleteSign(signRowIndex, signCellIndex){
-        deleteItemFromSelected(selectedSigns, setSelectedSigns, signRowIndex, signCellIndex);
+        deleteItemFromSelected(selectedSigns, setSelectedSigns, signRowIndex, signCellIndex, signs, setSigns, filteredSigns, setFilteredSigns);
     }
+
+    // async function insertFormToPhotoshop(){
+    //     let imageDataOptions = {
+    //         width: 501,
+    //         height: 350,
+    //         components: 3,
+    //         colorProfile: "Adobe RGB (1998)",
+    //         colorSpace: "RGB",
+    //         chunky: false
+    //     }
+    //     let folder = await fileManager.getFolderByPath(currentFormFolder);
+    //     let fileObj = await readFileObj(folder, '1.jpg');
+    //
+    //     // let bytes = new Uint8Array(currentForm.fileObj.bytes);
+    //     let bytes = new Uint8Array(fileObj.bytes);
+    //
+    //     const imageData =  await imaging.createImageDataFromBuffer(bytes, imageDataOptions);
+    //     let layerOptions = {name: currentForm.name}
+    //     let layerInfo = await createNewLayerInApp(layerOptions);
+    //
+    //     let putPixelsOptions = {layerID: layerInfo.id, imageData: imageData}
+    //     await execute(() => imaging.putPixels(putPixelsOptions))
+    // }
+
+    async function execute(pluginFunc){
+        return await photoshop.core.executeAsModal(pluginFunc);
+    }
+
+    async function createNewLayerInApp(options){
+        let activeDocument = app.activeDocument;
+        return await execute(() => activeDocument.createLayer(options));
+    }
+
+
+
+
+
+
+
+
+
+
+
+
 
     return (
         <div className="pluginBody">
@@ -252,7 +289,9 @@ export const ColorPicker = () => {
             {(() => {if(currentForm){
                 return (
                     <div>
-                        <div id="formItemView"></div>
+                        <div id="formItemView">
+                            <img className={'img100'} src={currentForm.fileObj.file64} alt=""/>
+                        </div>
                         <div id="initials">
                             <sp-checkbox>Фамилия</sp-checkbox>
                             <sp-textfield placeholder="Фамилия И.О." id ="initialInput" type="input"></sp-textfield>
@@ -351,7 +390,7 @@ export const ColorPicker = () => {
                             </div>
                         </div>
 
-                        <sp-button>Подставить форму</sp-button>
+                        <sp-button onClick={() => insertFormToPhotoshop()}>Подставить форму</sp-button>
                     </div>
                 )
             }})()}
