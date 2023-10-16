@@ -15,6 +15,10 @@ export const fileManager = {
             folder = await folder.getEntry(p)
         }
         return folder;
+    },
+    tokenify: async (url) => {
+        let entry = await storage.localFileSystem.getEntryWithUrl("file:" + url);
+        return storage.localFileSystem.createSessionToken(entry);
     }
 }
 

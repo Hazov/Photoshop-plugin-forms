@@ -3,10 +3,9 @@ const storage = uxp.storage;
 
 export const util = {
     arrayBufferToBase64: (buffer) => {
-    var binary = '';
-    var bytes = new Uint8Array( buffer );
-    var len = bytes.byteLength;
-    for (var i = 0; i < len; i++) {
+    let binary = '';
+    let bytes = new Uint8Array( buffer );
+    for (var i = 0; i < bytes.byteLength; i++) {
         binary += String.fromCharCode( bytes[ i ] );
     }
     return window.btoa( binary );

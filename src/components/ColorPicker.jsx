@@ -99,7 +99,7 @@ export const ColorPicker = () => {
     async function readFileObj(folder, fileName){
         let file = await folder.getEntry(fileName);
         let bytes = await file.read({format: formats.binary});
-        return  {bytes: bytes, file64: "data:image/png;base64," + util.arrayBufferToBase64(bytes)}
+        return  {path: file.nativePath, bytes: bytes, file64: "data:image/png;base64," + util.arrayBufferToBase64(bytes)}
     }
 
     async function toSignsAndMedals(form){
@@ -183,28 +183,98 @@ export const ColorPicker = () => {
         deleteItemFromSelected(selectedSigns, setSelectedSigns, signRowIndex, signCellIndex, signs, setSigns, setFilteredSigns, 'signsSearchInput');
     }
 
-    // async function insertFormToPhotoshop(){
-    //     let imageDataOptions = {
-    //         width: 501,
-    //         height: 350,
-    //         components: 3,
-    //         colorProfile: "Adobe RGB (1998)",
-    //         colorSpace: "RGB",
-    //         chunky: false
-    //     }
-    //     let folder = await fileManager.getFolderByPath(currentFormFolder);
-    //     let fileObj = await readFileObj(folder, '1.jpg');
-    //
-    //     // let bytes = new Uint8Array(currentForm.fileObj.bytes);
-    //     let bytes = new Uint8Array(fileObj.bytes);
-    //
-    //     const imageData =  await imaging.createImageDataFromBuffer(bytes, imageDataOptions);
-    //     let layerOptions = {name: currentForm.name}
-    //     let layerInfo = await createNewLayerInApp(layerOptions);
-    //
-    //     let putPixelsOptions = {layerID: layerInfo.id, imageData: imageData}
-    //     await execute(() => imaging.putPixels(putPixelsOptions))
-    // }
+    async function insertFormToPhotoshop() {
+        await insertImageToPhotoshop(currentForm.fileObj.path);
+        await resizeImage(4.8599608438386435);
+        // selectedSigns.forEach(signsRow => {
+        //     signsRow.filter(sign => sign).forEach(sign => insertImageToPhotoshop(sign.path))
+        // })
+        // selectedMedals.forEach(medalsRow => {
+        //     medalsRow.filter(medal => medal).forEach(medal => insertImageToPhotoshop(medal.path))
+        // })
+    }
+
+    async function insertImageToPhotoshop(filePath){
+        let insertDescriptor = [
+            {
+                _obj: "placeEvent",
+                null: {
+                    _path: await fileManager.tokenify(filePath),
+                    _kind: "local"
+                },
+                offset: {
+                    _obj: "offset",
+                    horizontal: {
+                        _unit: "pixelsUnit",
+                        _value: 0
+                    },
+                    vertical: {
+                        _unit: "pixelsUnit",
+                        _value: 0
+                    }
+                },
+                _options: {
+                    dialogOptions: "dontDisplay"
+                }
+            }
+        ]
+        await execute(() =>photoshop.action.batchPlay(insertDescriptor, {}));
+    }
+
+    async function resizeImage(percentValue){
+        let resizeDescriptor =
+            [
+                {
+                    _obj: "transform",
+                    _target: [
+                        {
+                            _ref: "layer",
+                            _enum: "ordinal",
+                            _value: "targetEnum"
+                        }
+                    ],
+                    freeTransformCenterState: {
+                        _enum: "quadCenterState",
+                        _value: "QCSAverage"
+                    },
+                    offset: {
+                        _obj: "offset",
+                        horizontal: {
+                            _unit: "pixelsUnit",
+                            _value: 0
+                        },
+                        vertical: {
+                            _unit: "pixelsUnit",
+                            _value: 0
+                        }
+                    },
+                    width: {
+                        _unit: "percentUnit",
+                        _value: percentValue,
+                    },
+                    height: {
+                        _unit: "percentUnit",
+                        _value: percentValue
+                    },
+                    linked: true,
+                    interfaceIconFrameDimmed: {
+                        _enum: "interpolationType",
+                        _value: "bicubic"
+                    },
+                    _options: {
+                        dialogOptions: "dontDisplay"
+                    }
+                }
+            ];
+        await execute(() =>photoshop.action.batchPlay(resizeDescriptor, {}));
+
+    }
+
+
+
+
+
+
 
     async function execute(pluginFunc){
         return await photoshop.core.executeAsModal(pluginFunc);
