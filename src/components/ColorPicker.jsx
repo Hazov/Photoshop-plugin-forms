@@ -8,6 +8,7 @@ const uxp = require('uxp')
 const fileManager = require('./fileManager.js').fileManager;
 const fetchManager = require('./fetchManager.js').fetchManager;
 const util = require('./util.js').util;
+const executor = require('./photoshopExecutor.js').photoshopExecutor;
 const app = photoshop.app;
 const storage = uxp.storage;
 const imaging = photoshop.imaging;
@@ -184,96 +185,15 @@ export const ColorPicker = () => {
     }
 
     async function insertFormToPhotoshop() {
-        await insertImageToPhotoshop(currentForm.fileObj.path);
-        await resizeImage(4.8599608438386435);
-        // selectedSigns.forEach(signsRow => {
-        //     signsRow.filter(sign => sign).forEach(sign => insertImageToPhotoshop(sign.path))
-        // })
-        // selectedMedals.forEach(medalsRow => {
-        //     medalsRow.filter(medal => medal).forEach(medal => insertImageToPhotoshop(medal.path))
-        // })
+        await executor.insertImageToPhotoshop(currentForm.fileObj.path);
+        // await executor.resizeImage(4.8599608438386435);
+        selectedSigns.forEach(signsRow => {
+            signsRow.filter(sign => sign).forEach(sign => executor.insertImageToPhotoshop(sign.path))
+        })
+        selectedMedals.forEach(medalsRow => {
+            medalsRow.filter(medal => medal).forEach(medal => executor.insertImageToPhotoshop(medal.path))
+        })
     }
-
-    async function insertImageToPhotoshop(filePath){
-        let insertDescriptor = [
-            {
-                _obj: "placeEvent",
-                null: {
-                    _path: await fileManager.tokenify(filePath),
-                    _kind: "local"
-                },
-                offset: {
-                    _obj: "offset",
-                    horizontal: {
-                        _unit: "pixelsUnit",
-                        _value: 0
-                    },
-                    vertical: {
-                        _unit: "pixelsUnit",
-                        _value: 0
-                    }
-                },
-                _options: {
-                    dialogOptions: "dontDisplay"
-                }
-            }
-        ]
-        await execute(() =>photoshop.action.batchPlay(insertDescriptor, {}));
-    }
-
-    async function resizeImage(percentValue){
-        let resizeDescriptor =
-            [
-                {
-                    _obj: "transform",
-                    _target: [
-                        {
-                            _ref: "layer",
-                            _enum: "ordinal",
-                            _value: "targetEnum"
-                        }
-                    ],
-                    freeTransformCenterState: {
-                        _enum: "quadCenterState",
-                        _value: "QCSAverage"
-                    },
-                    offset: {
-                        _obj: "offset",
-                        horizontal: {
-                            _unit: "pixelsUnit",
-                            _value: 0
-                        },
-                        vertical: {
-                            _unit: "pixelsUnit",
-                            _value: 0
-                        }
-                    },
-                    width: {
-                        _unit: "percentUnit",
-                        _value: percentValue,
-                    },
-                    height: {
-                        _unit: "percentUnit",
-                        _value: percentValue
-                    },
-                    linked: true,
-                    interfaceIconFrameDimmed: {
-                        _enum: "interpolationType",
-                        _value: "bicubic"
-                    },
-                    _options: {
-                        dialogOptions: "dontDisplay"
-                    }
-                }
-            ];
-        await execute(() =>photoshop.action.batchPlay(resizeDescriptor, {}));
-
-    }
-
-
-
-
-
 
 
     async function execute(pluginFunc){
