@@ -108,9 +108,28 @@
     height: 30px;
     border: 1px black solid;
 }
+.absolute{
+    position: absolute;
+}
 
-.img30{
+.imgw30{
+    position: relative;
     width: 30px;
+}
+.imgh30{
+    height: 30px;
+}
+.zInd0{
+    z-index: 4;
+}
+.zInd1{
+    z-index: 3;
+}
+.zInd2{
+   z-index: 2;
+}
+.zInd3{
+    z-index: 1;
 }
 
 .img100{

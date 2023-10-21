@@ -14,15 +14,17 @@ const storage = uxp.storage;
 const imaging = photoshop.imaging;
 const formats = storage.formats
 
-const DEFAULT_MEDAL_ROWS = 3;
-const DEFAULT_MEDALS_IN_ROW = 5;
-const DEFAULT_SIGN_ROWS = 2;
-const DEFAULT_SIGNS_IN_ROW = 4;
+let medalRowsCount = 3;
+let medalsInRow = 4;
+let signRowsCount = 2;
+let signsInRow = 3;
 let currentFormFolder = ['allFiles','forms']
 let isInit = false;
 
 
 export const ColorPicker = () => {
+    let medalsSearch = '';
+    let signsSearch = '';
     let [formCategory, setFormCategory] = useState({title: '', categoryItems: []});
     let [filteredFormItems, setFilteredFormItems] = useState([]);
     let [medals, setMedals] = useState([]);
@@ -38,22 +40,93 @@ export const ColorPicker = () => {
     async function init(){
         if(!isInit){
             fetchManager.fetchFormCategory(await fileManager.getFolderByPath(currentFormFolder)).then(resolve => setFormCategory(resolve));
-            initSelectedCells(DEFAULT_MEDAL_ROWS, DEFAULT_MEDALS_IN_ROW, setSelectedMedals);
-            initSelectedCells(DEFAULT_SIGN_ROWS, DEFAULT_SIGNS_IN_ROW, setSelectedSigns);
+            updateSelectedCells(await getItemSet('medal'));
+            updateSelectedCells(await getItemSet('sign'));
             isInit = true
         }
     }
 
-    function initSelectedCells(rowSize, cellSize, setter){
+
+    async function changeItemsInRow(isIncrease, itemName){
+        let itemSet = await getItemSet(itemName);
+        if(isIncrease && itemSet.maxItemsInRow > itemSet.itemsInRow){
+            itemSet.itemsInRowSetter(++itemSet.itemsInRow);
+        } else if(!isIncrease && itemSet.minItemsInRow < itemSet.itemsInRow){
+            itemSet.itemsInRowSetter(--itemSet.itemsInRow);
+        } else {
+            return;
+        }
+        updateSelectedCells(itemSet);
+    }
+    function updateSelectedCells(itemSet) {
+        let allSelectedItems = itemSet.selectedItems.flatMap(item => item);
         let rowsArray = [];
-        for(let i = 0; i < rowSize; i++){
+        for(let i = 0; i < itemSet.itemRowsCount; i++){
             let cellsArray = [];
-            for (let j = 0; j < cellSize; j++) {
-                cellsArray.push(null);
+            for (let j = 0; j < itemSet.itemsInRow; j++) {
+                let selectedIdx = i * itemSet.itemsInRow + j;
+                let selectedItem = null;
+                if(allSelectedItems && allSelectedItems.length && allSelectedItems.length > selectedIdx && allSelectedItems[selectedIdx]){
+                    selectedItem = allSelectedItems[selectedIdx];
+                    allSelectedItems[selectedIdx] = null;
+                }
+                cellsArray.push(selectedItem);
             }
             rowsArray.push(cellsArray);
         }
-        setter(rowsArray);
+        itemSet.selectedSetter(rowsArray);
+        allSelectedItems.filter(item => item).forEach(item => itemSet.allItems.push(item));
+        itemSet.allItemsSetter(itemSet.allItems);
+        if(itemSet.allItems && itemSet.allItems.length){
+            itemSet.filteredSetter(search(itemSet.search, itemSet.allItems));
+        }
+
+    }
+    function medalsInRowSetter(count){
+        medalsInRow = count;
+    }
+    function signsInRowSetter(count){
+        signsInRow = count;
+    }
+    async function getItemSet(itemName){
+        let itemSet = {};
+        itemSet.itemName = itemName;
+        switch (itemName){
+            case 'sign': {
+                itemSet.search = signsSearch;
+                itemSet.itemRowsCount = signRowsCount;
+                itemSet.itemsInRow = signsInRow;
+                itemSet.itemsInRowSetter = signsInRowSetter;
+                itemSet.minItemsInRow = 2;
+                itemSet.maxItemsInRow = 4;
+                itemSet.selectedItems = selectedSigns;
+                itemSet.selectedSetter = setSelectedSigns;
+                itemSet.allItems = signs;
+                itemSet.allItemsSetter = setSigns;
+                itemSet.filteredItems = filteredSigns;
+                itemSet.filteredSetter = setFilteredSigns;
+                itemSet.itemFolder = await fetchManager.getSignsFolder();
+                break;
+            }
+            case 'medal': {
+                itemSet.search = medalsSearch;
+                itemSet.itemRowsCount = medalRowsCount;
+                itemSet.itemsInRow = medalsInRow;
+                itemSet.itemsInRowSetter = medalsInRowSetter;
+                itemSet.minItemsInRow = 3;
+                itemSet.maxItemsInRow = 5;
+                itemSet.selectedItems = selectedMedals;
+                itemSet.selectedSetter = setSelectedMedals;
+                itemSet.allItems = medals;
+                itemSet.allItemsSetter = setMedals;
+                itemSet.filteredItems = filteredMedals;
+                itemSet.filteredSetter = setFilteredMedals;
+                itemSet.itemFolder = await fetchManager.getMedalsFolder();
+                break;
+            }
+        }
+        return itemSet;
+
     }
 
     async function prevCategory(){
@@ -86,14 +159,16 @@ export const ColorPicker = () => {
         }
     }
     function searchMedals(e){
+        medalsSearch = e.target.value;
         if(medals){
-            setFilteredMedals(search(e.target.value, medals));
+            setFilteredMedals(search(medalsSearch, medals));
         }
     }
 
     function searchSigns(e){
+        signsSearch = e.target.value;
         if(signs){
-            setFilteredSigns(search(e.target.value, signs));
+            setFilteredSigns(search(signsSearch, signs));
         }
     }
 
@@ -117,32 +192,32 @@ export const ColorPicker = () => {
         });
     }
 
-    async function addItemToCell(item, selectedArray, setter, folder, allArray, filteredArray, allSetter, filteredSetter){
-        let coord = defineCoordToAdd(selectedArray);
-        let fileObj = await readFileObj(folder, item.fileName);
-        let newSelectedItems = JSON.parse(JSON.stringify(selectedArray));
+    async function addItemToCell(item, set){
+        let coord = defineCoordToAdd(set.selectedItems);
+        let fileObj = await readFileObj(set.itemFolder, item.fileName);
+        let newSelectedItems = JSON.parse(JSON.stringify(set.selectedItems));
         newSelectedItems[coord.row][coord.cell] = {...item, ...fileObj};
-        setter(newSelectedItems);
+        set.selectedSetter(newSelectedItems);
 
-        let inAllItemIndex = allArray.indexOf(item);
-        let allArrayCopy = JSON.parse(JSON.stringify(allArray));
+        let inAllItemIndex = set.allItems.indexOf(item);
+        let allArrayCopy = JSON.parse(JSON.stringify(set.allItems));
         allArrayCopy.splice(inAllItemIndex, 1);
-        allSetter(allArrayCopy);
+        set.allItemsSetter(allArrayCopy);
 
-        let inFilteredItemIndex = filteredArray.indexOf(item);
-        let filteredArrayCopy = JSON.parse(JSON.stringify(filteredArray));
+        let inFilteredItemIndex = set.filteredItems.indexOf(item);
+        let filteredArrayCopy = JSON.parse(JSON.stringify(set.filteredItems));
         filteredArrayCopy.splice(inFilteredItemIndex, 1)
-        filteredSetter(filteredArrayCopy)
+        set.filteredSetter(filteredArrayCopy)
 
 
     }
 
     async function addMedal(medal) {
-        addItemToCell(medal, selectedMedals, setSelectedMedals, await fetchManager.getMedalsFolder(), medals, filteredMedals, setMedals, setFilteredMedals);
+        addItemToCell(medal, await getItemSet('medal'));
     }
 
     async function addSign(sign){
-        addItemToCell(sign, selectedSigns, setSelectedSigns, await fetchManager.getSignsFolder(), signs, filteredSigns, setSigns, setFilteredSigns)
+        addItemToCell(sign, await getItemSet('sign'));
     }
 
     function defineCoordToAdd(array){
@@ -358,7 +433,7 @@ export const ColorPicker = () => {
                                                             return (
                                                                 <div id={"sign" + signRowIndex + "-" + signCellIndex} className={'itemCell'} key={'signRow' + signCellIndex}>
                                                                     <div onClick={() => deleteSign(signRowIndex, signCellIndex)}>
-                                                                        <img className={'img30'} src={sign.file64} alt=""/>
+                                                                        <img className={'imgh30'} src={sign.file64} alt=""/>
                                                                     </div>
                                                                 </div>
                                                             )
@@ -393,6 +468,7 @@ export const ColorPicker = () => {
                                     </sp-menu>
                                 </sp-card>
                                 {/*ВЫБРАННЫЕ МЕДАЛИ*/}
+                                <button onClick={() => changeItemsInRow(false, 'medal')}>-</button>
                                 <div id="medalsItemsView" className={'flex'}>
                                     <div className={'wrapper'}>
                                         {selectedMedals.map((medalRowArray, medalRowIndex) => {
@@ -402,8 +478,8 @@ export const ColorPicker = () => {
                                                         if(medal){
                                                             return (
                                                                 <div id={"medal" + medalRowIndex + "-" + medalCellIndex} className={'itemCell'} key={'medalRow' + medalCellIndex}>
-                                                                    <div onClick={() => deleteMedal(medalRowIndex, medalCellIndex)}>
-                                                                        <img className={'img30'} src={medal.file64} alt=""/>
+                                                                    <div class={'absolute'} onClick={() => deleteMedal(medalRowIndex, medalCellIndex)}>
+                                                                        <img className={'imgw30 zInd' + medalRowIndex} src={medal.file64} alt=""/>
                                                                     </div>
                                                                 </div>
                                                             )
@@ -418,6 +494,7 @@ export const ColorPicker = () => {
                                         })}
                                     </div>
                                 </div>
+                                <button onClick={() => changeItemsInRow(true, 'medal')}>+</button>
                             </div>
                         </div>
 
