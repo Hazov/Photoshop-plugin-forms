@@ -186,13 +186,57 @@ export const ColorPicker = () => {
 
     async function insertFormToPhotoshop() {
         await executor.insertImageToPhotoshop(currentForm.fileObj.path);
-        // await executor.resizeImage(4.8599608438386435);
-        selectedSigns.forEach(signsRow => {
-            signsRow.filter(sign => sign).forEach(sign => executor.insertImageToPhotoshop(sign.path))
+        await insertFormItemsToPhotoshop(selectedMedals, 'medal');
+        await insertFormItemsToPhotoshop(selectedSigns, 'sign');
+    }
+
+    async function insertFormItemsToPhotoshop(selectedItems, itemName){
+        let finalItems = [];
+        selectedItems.forEach((selectedRow, rowIdx) => {
+            let onlyFilled = selectedRow.filter(item => item);
+            onlyFilled.forEach((item, itemIdx) => {
+                item.offset = calculateOffset(rowIdx, itemIdx, onlyFilled.length, itemName);
+                finalItems.push(item);
+            })
         })
-        selectedMedals.forEach(medalsRow => {
-            medalsRow.filter(medal => medal).forEach(medal => executor.insertImageToPhotoshop(medal.path))
-        })
+
+        finalItems = finalItems.reverse();
+        for(let item of finalItems){
+            let result = await executor.insertImageToPhotoshop(item.path);
+            await executor.moveImage(item.offset)
+        }
+    }
+
+    function calculateOffset(rowIdx, itemIdx, itemsCountInRow, itemName){
+        let offsetSetting = getOffsetSettings(itemName, itemsCountInRow);
+        let offset = {};
+
+        offset.vertical = offsetSetting.vStartOffset + rowIdx * offsetSetting.vBetweenOffset;
+        offset.horizontal = offsetSetting.hStartOffset + itemIdx * offsetSetting.hBetweenOffset;
+        return offset;
+
+    }
+
+    function getOffsetSettings(itemName, itemsCountInRow){
+        let offsetSettings = {};
+        switch (itemName){
+            case 'sign': {
+                offsetSettings.vBetweenOffset = 200;
+                offsetSettings.hBetweenOffset = 150;
+                offsetSettings.hStartOffset = -675 - (offsetSettings.hBetweenOffset / 2 * itemsCountInRow);
+                offsetSettings.vStartOffset = -50;
+                break;
+            }
+            case 'medal': {
+                offsetSettings.vBetweenOffset = 150;
+                offsetSettings.hBetweenOffset = 150;
+                offsetSettings.hStartOffset = 675 - (offsetSettings.hBetweenOffset / 2 * itemsCountInRow);
+                offsetSettings.vStartOffset = 200;
+                break;
+            }
+        }
+        return offsetSettings;
+
     }
 
 

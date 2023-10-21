@@ -29,7 +29,7 @@ export const photoshopExecutor = {
                 }
             }
         ]
-        await photoshopExecutor.execute(() =>photoshop.action.batchPlay(insertDescriptor, {}));
+        return await photoshopExecutor.execute(() => photoshop.action.batchPlay(insertDescriptor, {}));
     },
 
     resizeImage: async (percentValue) => {
@@ -77,9 +77,55 @@ export const photoshopExecutor = {
                     }
                 }
             ];
-        await photoshopExecutor.execute(() =>photoshop.action.batchPlay(resizeDescriptor, {}));
+        await photoshopExecutor.execute(() => photoshop.action.batchPlay(resizeDescriptor, {}));
+    },
+    moveImage: async(offset) => {
+        let moveDescriptor =
+            [
+                {
+                    _obj: "move",
+                    _target: [
+                        {
+                            _ref: "layer",
+                            _enum: "ordinal",
+                            _value: "targetEnum"
+                        }
+                    ],
+                    to: {
+                        _obj: "offset",
+                        horizontal: {
+                            _unit: "pixelsUnit",
+                            _value: offset.horizontal
+                        },
+                        vertical: {
+                            _unit: "pixelsUnit",
+                            _value: offset.vertical
+                        }
+                    },
+                    _options: {
+                        dialogOptions: "dontDisplay"
+                    }
+                }
+            ];
+        await photoshopExecutor.execute(() => photoshop.action.batchPlay(moveDescriptor, {}));
 
+    },
+    selectLayers: async (layerIds) => {
+        let selectDescriptor =
+            [
+                {
+                    _obj: "select",
+                    makeVisible: false,
+                    layerID: layerIds,
+                    _options: {
+                        dialogOptions: "dontDisplay"
+                    }
+                }
+            ];
+        await photoshopExecutor.execute(() => photoshop.action.batchPlay(selectDescriptor, {}));
     }
+
+
 }
 
 
