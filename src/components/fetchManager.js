@@ -16,8 +16,8 @@ export const fetchManager = {
         }
     },
 
-    fetchMedals: async () => {
-        let medalsFolder = await fetchManager.getMedalsFolder();
+    fetchMedals: async (rightItemName) => {
+        let medalsFolder = await fetchManager.getMedalsFolder(rightItemName);
         let entries = await medalsFolder.getEntries();
         return entries.filter(entry => entry.isFile).map(file => {return {fileName: file.name, name: file.name.split('.')[0]}});
     },
@@ -28,8 +28,9 @@ export const fetchManager = {
         return entries.filter(entry => entry.isFile).map(file => {return {fileName: file.name, name: file.name.split('.')[0]}});
     },
 
-    getMedalsFolder: () => {
-        let medalsPath = 'allFiles/medals';
+    getMedalsFolder: (rightItemName) => {
+        if(!rightItemName) rightItemName = 'medals'
+        let medalsPath = 'allFiles/' + rightItemName;
         return fileManager.getFolderByPath(medalsPath);
     },
 

@@ -112,6 +112,18 @@
     position: absolute;
 }
 
+.circleBtn{
+    width: 26px;
+}
+
+.switchRightItemsBtn{
+    border: 1px solid #c4c4c4;
+    border-radius: 10px;
+    color: #c4c4c4;
+    font-size: 10px;
+    padding: 3px;
+}
+
 .imgw30{
     position: relative;
     width: 30px;

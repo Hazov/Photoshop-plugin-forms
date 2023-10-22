@@ -11,7 +11,6 @@ const util = require('./util.js').util;
 const executor = require('./photoshopExecutor.js').photoshopExecutor;
 const app = photoshop.app;
 const storage = uxp.storage;
-const imaging = photoshop.imaging;
 const formats = storage.formats
 
 let medalRowsCount = 3;
@@ -19,6 +18,7 @@ let medalsInRow = 4;
 let signRowsCount = 2;
 let signsInRow = 3;
 let currentFormFolder = ['allFiles','forms']
+let rightItemName = {name: 'medals', uiName: 'Медали', uiSwitchName: 'Планки'};
 let isInit = false;
 
 
@@ -121,7 +121,7 @@ export const ColorPicker = () => {
                 itemSet.allItemsSetter = setMedals;
                 itemSet.filteredItems = filteredMedals;
                 itemSet.filteredSetter = setFilteredMedals;
-                itemSet.itemFolder = await fetchManager.getMedalsFolder();
+                itemSet.itemFolder = await fetchManager.getMedalsFolder(rightItemName.name);
                 break;
             }
         }
@@ -199,12 +199,12 @@ export const ColorPicker = () => {
         newSelectedItems[coord.row][coord.cell] = {...item, ...fileObj};
         set.selectedSetter(newSelectedItems);
 
-        let inAllItemIndex = set.allItems.indexOf(item);
+        let inAllItemIndex = util.indexOf(set.allItems, item);
         let allArrayCopy = JSON.parse(JSON.stringify(set.allItems));
         allArrayCopy.splice(inAllItemIndex, 1);
         set.allItemsSetter(allArrayCopy);
 
-        let inFilteredItemIndex = set.filteredItems.indexOf(item);
+        let inFilteredItemIndex = util.indexOf(set.filteredItems, item);
         let filteredArrayCopy = JSON.parse(JSON.stringify(set.filteredItems));
         filteredArrayCopy.splice(inFilteredItemIndex, 1)
         set.filteredSetter(filteredArrayCopy)
@@ -325,16 +325,27 @@ export const ColorPicker = () => {
     }
 
 
+    function switchRightItems() {
+        switch (rightItemName.name){
+            case 'planks': {
+                rightItemName.name = 'medals';
+                rightItemName.uiName = 'Медали';
+                rightItemName.uiSwitchName = 'Планки';
+                break;
+            }
+            case 'medals': {
+                rightItemName.name = 'planks';
+                rightItemName.uiName = 'Планки';
+                rightItemName.uiSwitchName = 'Медали';
+                break;
+            }
+        }
 
-
-
-
-
-
-
-
-
-
+        fetchManager.fetchMedals(rightItemName.name).then(resolve => {
+            setMedals(resolve);
+            setFilteredMedals(search(medalsSearch, resolve));
+        });
+    }
 
     return (
         <div className="pluginBody">
@@ -451,7 +462,11 @@ export const ColorPicker = () => {
                             </div>
                             {/*СПИСОК МЕДАЛЕЙ*/}
                             <div className={'formItems'}>
-                                <h2>Медали</h2>
+                                <div className={'flex'}>
+                                    <h2>{rightItemName.uiName}</h2>
+                                    <h2 onClick={() => switchRightItems()} className={'switchRightItemsBtn'}>{rightItemName.uiSwitchName}</h2>
+                                </div>
+
                                 {/*поиск*/}
                                 <sp-textfield id="medalsSearchInput" onInput={searchMedals} class ="searchInput" type="search">
                                 </sp-textfield>
@@ -468,8 +483,8 @@ export const ColorPicker = () => {
                                     </sp-menu>
                                 </sp-card>
                                 {/*ВЫБРАННЫЕ МЕДАЛИ*/}
-                                <button onClick={() => changeItemsInRow(false, 'medal')}>-</button>
                                 <div id="medalsItemsView" className={'flex'}>
+                                    <button className={'circleBtn'} onClick={() => changeItemsInRow(false, 'medal')}>-</button>
                                     <div className={'wrapper'}>
                                         {selectedMedals.map((medalRowArray, medalRowIndex) => {
                                             return (
@@ -478,7 +493,7 @@ export const ColorPicker = () => {
                                                         if(medal){
                                                             return (
                                                                 <div id={"medal" + medalRowIndex + "-" + medalCellIndex} className={'itemCell'} key={'medalRow' + medalCellIndex}>
-                                                                    <div class={'absolute'} onClick={() => deleteMedal(medalRowIndex, medalCellIndex)}>
+                                                                    <div className={'absolute'} onClick={() => deleteMedal(medalRowIndex, medalCellIndex)}>
                                                                         <img className={'imgw30 zInd' + medalRowIndex} src={medal.file64} alt=""/>
                                                                     </div>
                                                                 </div>
@@ -493,8 +508,8 @@ export const ColorPicker = () => {
                                             )
                                         })}
                                     </div>
+                                    <button className={'circleBtn'} onClick={() => changeItemsInRow(true, 'medal')}>+</button>
                                 </div>
-                                <button onClick={() => changeItemsInRow(true, 'medal')}>+</button>
                             </div>
                         </div>
 
