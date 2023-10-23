@@ -23,6 +23,27 @@ export const util = {
             return -1;
         }
         return array.indexOf(foundItem);
+    },
+    groupBy: (arr, key) => {
+        arr = arr.filter(el => el).filter(el => el[key]);
+        if(arr && arr.length){
+            let groupObject = arr.reduce((rv, x) => {
+                let k = util.hashCode(JSON.stringify(x[key]));
+                (rv[k] = rv[k] || []).push(x);
+                return rv;
+            }, {});
+            return Object.values(groupObject);
+        }
+        return [];
+    },
+    hashCode: (string) => {
+        let hash = 0;
+        for (let i = 0; i < string.length; i++) {
+            let code = string.charCodeAt(i);
+            hash = ((hash<<5)-hash)+code;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return hash;
     }
 }
 

@@ -17,9 +17,12 @@ export const fetchManager = {
     },
 
     fetchMedals: async (rightItemName) => {
+        if(/s+$/.test(rightItemName.name)){
+            rightItemName.name = rightItemName.name.replace(/s+$/, '')
+        }
         let medalsFolder = await fetchManager.getMedalsFolder(rightItemName);
         let entries = await medalsFolder.getEntries();
-        return entries.filter(entry => entry.isFile).map(file => {return {fileName: file.name, name: file.name.split('.')[0]}});
+        return entries.filter(entry => entry.isFile).map(file => {return {itemName: rightItemName, fileName: file.name, name: file.name.split('.')[0]}});
     },
 
     fetchSigns: async () => {
@@ -29,8 +32,10 @@ export const fetchManager = {
     },
 
     getMedalsFolder: (rightItemName) => {
-        if(!rightItemName) rightItemName = 'medals'
-        let medalsPath = 'allFiles/' + rightItemName;
+        if(/s+$/.test(rightItemName.name)){
+            rightItemName.name = rightItemName.name.replace(/s+$/, '')
+        }
+        let medalsPath = 'allFiles/' + rightItemName.name + 's';
         return fileManager.getFolderByPath(medalsPath);
     },
 

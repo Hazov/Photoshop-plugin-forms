@@ -13,21 +13,26 @@ const app = photoshop.app;
 const storage = uxp.storage;
 const formats = storage.formats
 
+const DEFAULT_MEDAL_ITEM_NAME = {name: 'medal', uiName: 'Медали', uiSwitchName: 'Планки'};
+const DEFAULT_PLANKS_ITEM_NAME = {name: 'plank', uiName: 'Планки', uiSwitchName: 'Медали'};
+
 let medalRowsCount = 3;
 let medalsInRow = 4;
 let signRowsCount = 2;
 let signsInRow = 3;
 let currentFormFolder = ['allFiles','forms']
-let rightItemName = {name: 'medals', uiName: 'Медали', uiSwitchName: 'Планки'};
+
 let isInit = false;
 
 
 export const ColorPicker = () => {
-    let medalsSearch = '';
-    let signsSearch = '';
+    let [rightItemName, setRightItemName] = useState({name: 'medal', uiName: 'Медали', uiSwitchName: 'Планки'})
+    let [medalsSearch, setMedalsSearch] = useState('');
+    let [signsSearch, setSignsSearch] = useState('');
     let [formCategory, setFormCategory] = useState({title: '', categoryItems: []});
     let [filteredFormItems, setFilteredFormItems] = useState([]);
     let [medals, setMedals] = useState([]);
+    let [planks, setPlanks] = useState([]);
     let [signs, setSigns] = useState([]);
     let [filteredMedals, setFilteredMedals] = useState([]);
     let [filteredSigns, setFilteredSigns] = useState([]);
@@ -48,6 +53,9 @@ export const ColorPicker = () => {
 
 
     async function changeItemsInRow(isIncrease, itemName){
+        if(itemName === 'rightItem'){
+            itemName = rightItemName.name
+        }
         let itemSet = await getItemSet(itemName);
         if(isIncrease && itemSet.maxItemsInRow > itemSet.itemsInRow){
             itemSet.itemsInRowSetter(++itemSet.itemsInRow);
@@ -58,7 +66,7 @@ export const ColorPicker = () => {
         }
         updateSelectedCells(itemSet);
     }
-    function updateSelectedCells(itemSet) {
+    async function updateSelectedCells(itemSet) {
         let allSelectedItems = itemSet.selectedItems.flatMap(item => item);
         let rowsArray = [];
         for(let i = 0; i < itemSet.itemRowsCount; i++){
@@ -75,8 +83,12 @@ export const ColorPicker = () => {
             rowsArray.push(cellsArray);
         }
         itemSet.selectedSetter(rowsArray);
-        allSelectedItems.filter(item => item).forEach(item => itemSet.allItems.push(item));
-        itemSet.allItemsSetter(itemSet.allItems);
+        let groupedSelectedItems = util.groupBy(allSelectedItems, 'itemName');
+        for (let group of groupedSelectedItems) {
+            let itemSet = await getItemSet(group[0].itemName.name);
+            group.forEach(item => itemSet.allItems.push(item));
+            itemSet.allItemsSetter(itemSet.allItems);
+        }
         if(itemSet.allItems && itemSet.allItems.length){
             itemSet.filteredSetter(search(itemSet.search, itemSet.allItems));
         }
@@ -106,6 +118,7 @@ export const ColorPicker = () => {
                 itemSet.filteredItems = filteredSigns;
                 itemSet.filteredSetter = setFilteredSigns;
                 itemSet.itemFolder = await fetchManager.getSignsFolder();
+                itemSet.itemSearchInput = 'signsSearchInput'
                 break;
             }
             case 'medal': {
@@ -121,7 +134,25 @@ export const ColorPicker = () => {
                 itemSet.allItemsSetter = setMedals;
                 itemSet.filteredItems = filteredMedals;
                 itemSet.filteredSetter = setFilteredMedals;
-                itemSet.itemFolder = await fetchManager.getMedalsFolder(rightItemName.name);
+                itemSet.itemFolder = await fetchManager.getMedalsFolder(rightItemName);
+                itemSet.itemSearchInput = 'medalsSearchInput'
+                break;
+            }
+            case 'plank': {
+                itemSet.search = medalsSearch;
+                itemSet.itemRowsCount = medalRowsCount;
+                itemSet.itemsInRow = medalsInRow;
+                itemSet.itemsInRowSetter = medalsInRowSetter;
+                itemSet.minItemsInRow = 3;
+                itemSet.maxItemsInRow = 5;
+                itemSet.selectedItems = selectedMedals;
+                itemSet.selectedSetter = setSelectedMedals;
+                itemSet.allItems = planks;
+                itemSet.allItemsSetter = setPlanks;
+                itemSet.filteredItems = filteredMedals;
+                itemSet.filteredSetter = setFilteredMedals;
+                itemSet.itemFolder = await fetchManager.getMedalsFolder(rightItemName);
+                itemSet.itemSearchInput = 'medalsSearchInput'
                 break;
             }
         }
@@ -158,17 +189,20 @@ export const ColorPicker = () => {
             setFilteredFormItems(search(e.target.value, formCategory.formItems));
         }
     }
-    function searchMedals(e){
-        medalsSearch = e.target.value;
-        if(medals){
-            setFilteredMedals(search(medalsSearch, medals));
+    async function searchMedals(e){
+        let value = e.target.value;
+        setMedalsSearch(value);
+        let itemSet =  await getItemSet(rightItemName.name);
+        if(itemSet.allItems){
+            setFilteredMedals(search(value, itemSet.allItems));
         }
     }
 
     function searchSigns(e){
-        signsSearch = e.target.value;
+        let value = e.target.value;
+        setSignsSearch(value)
         if(signs){
-            setFilteredSigns(search(signsSearch, signs));
+            setFilteredSigns(search(value, signs));
         }
     }
 
@@ -182,10 +216,13 @@ export const ColorPicker = () => {
         let folder = await fileManager.getFolderByPath(currentFormFolder);
         form.fileObj = await readFileObj(folder, form.fileName);
         setCurrentForm(form)
-        fetchManager.fetchMedals().then(resolve => {
+        fetchManager.fetchMedals(DEFAULT_MEDAL_ITEM_NAME).then(resolve => {
             setMedals(resolve);
             setFilteredMedals(resolve)
         });
+        fetchManager.fetchMedals(DEFAULT_PLANKS_ITEM_NAME).then(resolve => {
+            setPlanks(resolve);
+        })
         fetchManager.fetchSigns().then(resolve => {
             setSigns(resolve);
             setFilteredSigns(resolve)
@@ -213,7 +250,7 @@ export const ColorPicker = () => {
     }
 
     async function addMedal(medal) {
-        addItemToCell(medal, await getItemSet('medal'));
+        addItemToCell(medal, await getItemSet(rightItemName.name));
     }
 
     async function addSign(sign){
@@ -235,28 +272,33 @@ export const ColorPicker = () => {
         return {row: toAddRow, cell: toAddCell}
     }
 
-
-    function deleteItemFromSelected(array, setter, rowIndex, cellIndex, allArray, allSetter, filteredSetter, searchInputId){
-        let newSelectedItems = JSON.parse(JSON.stringify(array));
+    function deleteItemFromSelected(set, rowIndex, cellIndex){
+        let newSelectedItems = JSON.parse(JSON.stringify(set.selectedItems));
         let selectedItem = JSON.parse(JSON.stringify(newSelectedItems[rowIndex][cellIndex]));
         newSelectedItems[rowIndex][cellIndex] = null;
-        setter(newSelectedItems);
-
-        let allArrayCopy = JSON.parse(JSON.stringify(allArray));
-        allArrayCopy.push(selectedItem);
-        allArrayCopy.sort((s1, s2) => (s1.name).localeCompare(s2.name));
-        allSetter(allArrayCopy);
-
-        let searchInputElement = document.getElementById(searchInputId);
-        filteredSetter(search(searchInputElement.value, allArrayCopy))
+        let allItems = JSON.parse(JSON.stringify(set.allItems));
+        set.selectedSetter(newSelectedItems);
+        allItems.push(selectedItem);
+        allItems.sort((s1, s2) => (s1.name).localeCompare(s2.name));
+        set.allItemsSetter(allItems);
+        return allItems
     }
 
-    function deleteMedal(medalRowIndex, medalCellIndex) {
-        deleteItemFromSelected(selectedMedals, setSelectedMedals, medalRowIndex, medalCellIndex, medals, setMedals, setFilteredMedals, 'medalsSearchInput');
+    async function deleteMedal(medalRowIndex, medalCellIndex) {
+        let itemName = selectedMedals[medalRowIndex][medalCellIndex].itemName;
+        let itemSet = await getItemSet(itemName.name);
+        let allItems = deleteItemFromSelected(itemSet, medalRowIndex, medalCellIndex);
+        if(rightItemName.name !== itemName.name){
+            itemSet = await getItemSet(rightItemName.name);
+            allItems = itemSet.allItems;
+        }
+        itemSet.filteredSetter(search(itemSet.search, allItems))
     }
 
-    function deleteSign(signRowIndex, signCellIndex){
-        deleteItemFromSelected(selectedSigns, setSelectedSigns, signRowIndex, signCellIndex, signs, setSigns, setFilteredSigns, 'signsSearchInput');
+    async function deleteSign(signRowIndex, signCellIndex){
+        let itemSet = await getItemSet('sign');
+        let allItems = deleteItemFromSelected(itemSet, signRowIndex, signCellIndex);
+        itemSet.filteredSetter(search(itemSet.search, allItems))
     }
 
     async function insertFormToPhotoshop() {
@@ -327,24 +369,22 @@ export const ColorPicker = () => {
 
     function switchRightItems() {
         switch (rightItemName.name){
-            case 'planks': {
-                rightItemName.name = 'medals';
+            case 'plank': {
+                rightItemName.name = 'medal';
                 rightItemName.uiName = 'Медали';
                 rightItemName.uiSwitchName = 'Планки';
+                setFilteredMedals(search(medalsSearch, medals));
                 break;
             }
-            case 'medals': {
-                rightItemName.name = 'planks';
+            case 'medal': {
+                rightItemName.name = 'plank';
                 rightItemName.uiName = 'Планки';
                 rightItemName.uiSwitchName = 'Медали';
+                setFilteredMedals(search(medalsSearch, planks));
                 break;
             }
         }
-
-        fetchManager.fetchMedals(rightItemName.name).then(resolve => {
-            setMedals(resolve);
-            setFilteredMedals(search(medalsSearch, resolve));
-        });
+        setRightItemName(rightItemName);
     }
 
     return (
@@ -484,7 +524,7 @@ export const ColorPicker = () => {
                                 </sp-card>
                                 {/*ВЫБРАННЫЕ МЕДАЛИ*/}
                                 <div id="medalsItemsView" className={'flex'}>
-                                    <button className={'circleBtn'} onClick={() => changeItemsInRow(false, 'medal')}>-</button>
+                                    <button className={'circleBtn'} onClick={() => changeItemsInRow(false, 'rightItem')}>-</button>
                                     <div className={'wrapper'}>
                                         {selectedMedals.map((medalRowArray, medalRowIndex) => {
                                             return (
@@ -508,7 +548,7 @@ export const ColorPicker = () => {
                                             )
                                         })}
                                     </div>
-                                    <button className={'circleBtn'} onClick={() => changeItemsInRow(true, 'medal')}>+</button>
+                                    <button className={'circleBtn'} onClick={() => changeItemsInRow(true, 'rightItem')}>+</button>
                                 </div>
                             </div>
                         </div>
