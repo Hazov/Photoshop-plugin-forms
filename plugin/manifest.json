@@ -65,74 +65,34 @@
         "width": 600,
         "height": 650
       },
-      "icons": [
-        {
-          "width": 32,
-          "height": 32,
-          "path": "icons/icon_D.png",
-          "scale": [
-            1,
-            2
-          ],
-          "theme": [
-            "dark",
-            "darkest"
-          ],
-          "species": [
-            "generic"
-          ]
-        },
-        {
-          "width": 32,
-          "height": 32,
-          "path": "icons/icon_N.png",
-          "scale": [
-            1,
-            2
-          ],
-          "theme": [
-            "lightest",
-            "light"
-          ],
-          "species": [
-            "generic"
-          ]
-        }
-      ]
+      "icons": [{
+        "width": 23,
+        "height": 23,
+        "path": "icons/light.png",
+        "scale": [1, 2],
+        "theme": ["darkest", "dark"]
+      }, {
+        "width": 23,
+        "height": 23,
+        "path": "icons/dark.png",
+        "scale": [1, 2],
+        "theme": ["lightest", "light"]
+      }]
     }
   ],
-  "icons": [
-    {
-      "width": 32,
-      "height": 32,
-      "path": "icons/icon_D.png",
-      "scale": [
-        1,
-        2
-      ],
-      "theme": [
-        "dark",
-        "darkest"
-      ],
-      "species": [
-        "generic"
-      ]
-    },
-    {
-      "width": 32,
-      "height": 32,
-      "path": "icons/icon_N.png",
-      "scale": [
-        1,
-        2
-      ],
-      "theme": [
-        "lightest",
-        "light"
-      ],
-      "species": [
-        "generic"
-      ]
-    }
-  ]
+  "icons": [{
+    "width": 48,
+    "height": 48,
+    "path": "icons/lightPlugin.png",
+    "scale": [1, 2],
+    "theme": ["darkest", "dark"],
+    "species": ["pluginList"]
+  }, {
+    "width": 48,
+    "height": 48,
+    "path": "icons/darkPlugin.png",
+    "scale": [1, 2],
+    "theme": ["lightest", "light"],
+    "species": ["pluginList"]
+  }]
 }

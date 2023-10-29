@@ -1,5 +1,6 @@
 import React, {forwardRef, useState} from "react";
 
+
 import "./ColorPicker.css"
 
 
@@ -30,7 +31,7 @@ export const ColorPicker = () => {
     let [medalsSearch, setMedalsSearch] = useState('');
     let [signsSearch, setSignsSearch] = useState('');
     let [formCategory, setFormCategory] = useState({title: '', categoryItems: []});
-    let [filteredFormItems, setFilteredFormItems] = useState([]);
+    let [filteredForms, setFilteredForms] = useState([]);
     let [medals, setMedals] = useState([]);
     let [planks, setPlanks] = useState([]);
     let [signs, setSigns] = useState([]);
@@ -39,6 +40,12 @@ export const ColorPicker = () => {
     let [currentForm, setCurrentForm] = useState(null);
     let [selectedMedals, setSelectedMedals] = useState([]);
     let [selectedSigns, setSelectedSigns] = useState([]);
+    let [initials, setInitials] = useState(null);
+    let [isLoading, setIsLoading] = useState(false)
+    let [loadingProgressValue, setLoadingProgressValue] = useState('0')
+
+
+
 
     init();
 
@@ -168,8 +175,8 @@ export const ColorPicker = () => {
         currentFormFolder.push(item);
         fetchManager.fetchFormCategory(await fileManager.getFolderByPath(currentFormFolder)).then(resolve => {
             setFormCategory(resolve);
-            if (resolve.formItems) {
-                setFilteredFormItems(resolve.formItems);
+            if (resolve.formItems && resolve.formItems.length) {
+                setFilteredForms(resolve.formItems.filter(form => form.fileName.endsWith('.png')));
             }
         });
     }
@@ -186,7 +193,7 @@ export const ColorPicker = () => {
 
     function searchForms(e) {
         if(formCategory && formCategory.formItems){
-            setFilteredFormItems(search(e.target.value, formCategory.formItems));
+            setFilteredForms(search(e.target.value, formCategory.formItems));
         }
     }
     async function searchMedals(e){
@@ -205,6 +212,17 @@ export const ColorPicker = () => {
             setFilteredSigns(search(value, signs));
         }
     }
+    function setInitialsValue(e){
+        let value = e.target.value;
+        if(typeof e.target.value === 'string'){
+            value = value.toUpperCase();
+            let match = value.match(/[,!@#$%^&*:"']/g);
+            if(match?.length > 0){
+                value = value.replaceAll(/[,!@#$%^&*:"']+/g, '.')
+            }
+        }
+        setInitials(value);
+    }
 
     async function readFileObj(folder, fileName){
         let file = await folder.getEntry(fileName);
@@ -213,20 +231,35 @@ export const ColorPicker = () => {
     }
 
     async function toSignsAndMedals(form){
+        setIsLoading(true);
         let folder = await fileManager.getFolderByPath(currentFormFolder);
+                                                                            setLoadingProgressValue('0.6')
         form.fileObj = await readFileObj(folder, form.fileName);
-        setCurrentForm(form)
+                                                                            setLoadingProgressValue('0.9')
+        form.config = await fetchManager.fetchFormConfig(currentFormFolder);
+                                                                            setLoadingProgressValue('0.95')
+        if(form.config && form.config['rightItemsDefault'] === 'plank'){
+            switchRightItems();
+        }
+        setCurrentForm(form);
+        setIsLoading(false);
         fetchManager.fetchMedals(DEFAULT_MEDAL_ITEM_NAME).then(resolve => {
             setMedals(resolve);
-            setFilteredMedals(resolve)
+            if(rightItemName.name === 'medal'){
+                setFilteredMedals(resolve)
+            }
         });
         fetchManager.fetchMedals(DEFAULT_PLANKS_ITEM_NAME).then(resolve => {
             setPlanks(resolve);
+            if(rightItemName.name === 'plank'){
+                setFilteredMedals(resolve)
+            }
         })
         fetchManager.fetchSigns().then(resolve => {
             setSigns(resolve);
             setFilteredSigns(resolve)
         });
+
     }
 
     async function addItemToCell(item, set){
@@ -245,6 +278,11 @@ export const ColorPicker = () => {
         let filteredArrayCopy = JSON.parse(JSON.stringify(set.filteredItems));
         filteredArrayCopy.splice(inFilteredItemIndex, 1)
         set.filteredSetter(filteredArrayCopy)
+
+
+    }
+
+    function previewMedal(medal){
 
 
     }
@@ -300,60 +338,159 @@ export const ColorPicker = () => {
         let allItems = deleteItemFromSelected(itemSet, signRowIndex, signCellIndex);
         itemSet.filteredSetter(search(itemSet.search, allItems))
     }
-
-    async function insertFormToPhotoshop() {
-        await executor.insertImageToPhotoshop(currentForm.fileObj.path);
-        await insertFormItemsToPhotoshop(selectedMedals, 'medal');
-        await insertFormItemsToPhotoshop(selectedSigns, 'sign');
+    
+    function backToChooseCategories(){
+        setCurrentForm(null);
     }
 
-    async function insertFormItemsToPhotoshop(selectedItems, itemName){
+    async function insertFormToPhotoshop() {
+         try{
+             let insertFormResult = await executor.insertImageToPhotoshop(currentForm.fileObj.path);
+             //Айтемы
+             let medalLayerIds = await insertFormItemsToPhotoshop(selectedMedals);
+             let signLayerIds = await insertFormItemsToPhotoshop(selectedSigns);
+
+             let textLayerResult;
+             let formLayer = app.activeDocument.layers.find(layer => layer.id === insertFormResult[0].ID);
+             //Текст
+             if(initials){
+                 textLayerResult =  await executor.createTextLayer(initials);
+                 let initialsLayer = app.activeDocument.layers.find(layer => layer.id === textLayerResult[0].layerID)
+                 textLayerResult = [textLayerResult[0].layerID];
+                 await executor.transformLayer(getInitialsTransformOptions(formLayer, initialsLayer))
+             } else {
+                 textLayerResult = [];
+             }
+
+             await executor.selectLayers([ formLayer.id, ...medalLayerIds, ...signLayerIds, ...textLayerResult]);
+             let resizePercentValue = getResizeFormValue(formLayer);
+             await executor.resizeImage(resizePercentValue);
+         } catch (e) {
+             setIsLoading(false);
+         }
+
+    }
+
+    function getInitialsTransformOptions(formLayer, initialsLayer){
+        let transformOptions = getTransformOptions('initials', initialsLayer);
+
+        if(!transformOptions.offset || !transformOptions.offset.vertical){
+            transformOptions.offset.vertical = 0;
+        }
+        if(!transformOptions.offset || !transformOptions.offset.horizontal){
+            transformOptions.offset.horizontal = 0;
+        }
+        transformOptions = {offset: {}}
+        transformOptions.offset.vertical = formLayer.bounds.top;
+        transformOptions.offset.horizontal = (formLayer.bounds.right - formLayer.bounds.left) / 2;
+        return transformOptions;
+    }
+    function getResizeFormValue(formLayer){
+        if(formLayer){
+            let docWidth = app.activeDocument.width;
+            let formWidth = formLayer.bounds.width;
+            return docWidth / formWidth * 100 * 0.8;
+        }
+    }
+
+    async function insertFormItemsToPhotoshop(selectedItems){
         let finalItems = [];
+        let filledRowsCount = selectedItems.filter(row => row.some(item => item)).length;
         selectedItems.forEach((selectedRow, rowIdx) => {
             let onlyFilled = selectedRow.filter(item => item);
             onlyFilled.forEach((item, itemIdx) => {
-                item.offset = calculateOffset(rowIdx, itemIdx, onlyFilled.length, itemName);
+                item.offset = calculateOffset(rowIdx, itemIdx, onlyFilled.length, filledRowsCount, item.itemName.name);
                 finalItems.push(item);
             })
         })
 
         finalItems = finalItems.reverse();
+        let layersInfo = [];
         for(let item of finalItems){
-            let result = await executor.insertImageToPhotoshop(item.path);
-            await executor.moveImage(item.offset)
+            let itemLayerId = await placeItem(item);
+            layersInfo.push({item: item, layerId: itemLayerId});
+        }
+        await transformAllItems(layersInfo);
+        return layersInfo.map(info => info.layerId);
+    }
+
+    async function placeItem(item){
+        let insertResult = await executor.insertImageToPhotoshop(item.path);
+        await executor.moveImage(item.offset);
+        return insertResult[0].ID;
+    }
+    async function transformAllItems(layersInfo){
+        let itemNameLayersMap = new Map();
+        layersInfo.forEach(info => {
+            let itemName = info.item.itemName.name;
+            if(!itemNameLayersMap.get(itemName)){
+                itemNameLayersMap.set(itemName, []);
+            }
+            itemNameLayersMap.get(itemName).push(info.layerId);
+        })
+
+        for(let itemName of itemNameLayersMap.keys()){
+            let layerIds = itemNameLayersMap.get(itemName);
+            let options = getTransformOptions(itemName)
+            if(options){
+                await executor.selectLayers(layerIds);
+                await executor.transformLayer(options);
+            }
         }
     }
 
-    function calculateOffset(rowIdx, itemIdx, itemsCountInRow, itemName){
-        let offsetSetting = getOffsetSettings(itemName, itemsCountInRow);
+
+    function calculateOffset(rowIdx, itemIdx, itemsCountInRow, rowsCount, itemName){
+        let offsetSetting = getOffsetSettings(itemName, itemsCountInRow, rowsCount);
         let offset = {};
 
         offset.vertical = offsetSetting.vStartOffset + rowIdx * offsetSetting.vBetweenOffset;
         offset.horizontal = offsetSetting.hStartOffset + itemIdx * offsetSetting.hBetweenOffset;
         return offset;
-
     }
 
-    function getOffsetSettings(itemName, itemsCountInRow){
-        let offsetSettings = {};
-        switch (itemName){
-            case 'sign': {
-                offsetSettings.vBetweenOffset = 200;
-                offsetSettings.hBetweenOffset = 150;
-                offsetSettings.hStartOffset = -675 - (offsetSettings.hBetweenOffset / 2 * itemsCountInRow);
-                offsetSettings.vStartOffset = -50;
-                break;
+    function getTransformOptions(itemName, layer){
+        let options = {};
+        if(currentForm.config){
+            let config = JSON.parse(JSON.stringify(currentForm.config));
+            if(itemName === 'initials' && config['pocketSize']){
+                options.scale = getScaleByPocket(config['pocketSize'], layer);
+            } else {
+                if(config[itemName + 'Scale']){
+                    options.scale = config[itemName + 'Scale'];
+                }
             }
-            case 'medal': {
-                offsetSettings.vBetweenOffset = 150;
-                offsetSettings.hBetweenOffset = 150;
-                offsetSettings.hStartOffset = 675 - (offsetSettings.hBetweenOffset / 2 * itemsCountInRow);
-                offsetSettings.vStartOffset = 200;
-                break;
+            if(currentForm.config[itemName + 'Angle']){
+                options.angle = config[itemName + 'Angle'];
             }
+            if(currentForm.config[itemName + 'Offset']){
+                options.offset = config[itemName + 'Offset'];
+            }
+        } else {
+            return null;
         }
-        return offsetSettings;
+        return options;
+    }
 
+    function getScaleByPocket(pocketSize, initialsLayer){
+        let scale = {};
+        scale.width = (pocketSize.width / initialsLayer.bounds.width) * 100;
+        scale.height = (pocketSize.height / initialsLayer.bounds.height) * 100;
+        return scale;
+    }
+
+    function getOffsetSettings(itemName, itemsCountInRow, rowsCount){
+        let conf = currentForm.config;
+        let offsetSettings = {};
+        offsetSettings.vBetweenOffset = conf ? conf[itemName + 'VBetweenOffset']: 200;
+        offsetSettings.hBetweenOffset = conf ? conf[itemName + 'HBetweenOffset']: 150;
+        offsetSettings.hStartOffset = (conf ? conf[itemName + 'HStartOffset'] : -675) - (offsetSettings.hBetweenOffset / 2 * itemsCountInRow);
+        let vRowOffset = 0;
+        if(itemName === 'plank'){
+            vRowOffset = offsetSettings.vBetweenOffset * (rowsCount - 1);
+        }
+        offsetSettings.vStartOffset = (conf ? conf[itemName + 'VStartOffset'] : 150) - vRowOffset;
+        return offsetSettings;
     }
 
 
@@ -388,6 +525,7 @@ export const ColorPicker = () => {
     }
 
     return (
+
         <div className="pluginBody">
             <h1 id="mainTitle">Форма</h1>
             {(() => {
@@ -414,27 +552,35 @@ export const ColorPicker = () => {
 
                                 {(() => {
                                     if(formCategory && formCategory.formItems){
-                                        return (
-                                            <div>
-                                                <h2>Список форм</h2>
-                                                <sp-textfield onInput={searchForms} class ="searchInput" id="searchFormsInput" type="search">
-                                                </sp-textfield>
-                                                <sp-card id="formList">
-                                                    <sp-menu>
-                                                        {filteredFormItems.map((form, index) => {
-                                                            return (
-                                                                <sp-menu-item onClick={() => toSignsAndMedals(form)} className={'searchFormsBtn'} key={form.name + index}>
-                                                                    {form.name}
-                                                                </sp-menu-item>
-                                                            )
-                                                        })}
-                                                    </sp-menu>
-                                                </sp-card>
-                                            </div>
-                                        )
+                                        if(!isLoading){
+                                            return (
+                                                <div>
+                                                    <h2>Список форм</h2>
+                                                    <sp-textfield onInput={searchForms} class ="searchInput" id="searchFormsInput" type="search">
+                                                    </sp-textfield>
+                                                    <sp-card id="formList">
+                                                        <sp-menu>
+                                                            {filteredForms.map((form, index) => {
+                                                                return (
+                                                                    <sp-menu-item onClick={() => toSignsAndMedals(form)} className={'searchFormsBtn'} key={form.name + index}>
+                                                                        {form.name}
+                                                                    </sp-menu-item>
+                                                                )
+                                                            })}
+                                                        </sp-menu>
+                                                    </sp-card>
+                                                </div>
+                                            )
+                                        } else {
+                                            return(
+                                                <div>
+                                                    <progress className={'progress'} value={loadingProgressValue}/>
+                                                </div>
+                                            )
+                                        }
                                     }
                                 })()}
-                                {currentFormFolder.length > 2 ? <sp-button id="prevCategoryBtn" onClick={prevCategory}>Назад</sp-button> : null}
+                                {currentFormFolder.length > 2 && !isLoading ? <sp-button id="prevCategoryBtn" onClick={prevCategory}>Назад</sp-button> : null}
                             </div>
                         </div>
                     )
@@ -443,16 +589,16 @@ export const ColorPicker = () => {
 
 
 
-            {(() => {if(currentForm){
+            {(() => {if(currentForm && !isLoading){
                 return (
                     <div>
-                        <div id="formItemView">
-                            <img className={'img100'} src={currentForm.fileObj.file64} alt=""/>
-                        </div>
-                        <div id="initials">
-                            <sp-checkbox>Фамилия</sp-checkbox>
-                            <sp-textfield placeholder="Фамилия И.О." id ="initialInput" type="input"></sp-textfield>
-                            <sp-button>Сохранить</sp-button>
+                        <div className={'flex'}>
+                            <div id="formItemView">
+                                <img className={'img100'} src={currentForm.fileObj.file64} alt=""/>
+                            </div>
+                            <div className={'width70'} id="initials">
+                                <sp-textfield value={initials} onInput={setInitialsValue} placeholder="Фамилия И.О." id ="initialInput" type="input"></sp-textfield>
+                            </div>
                         </div>
                         <div id="flex-box">
                             {/*СПИСОК ЗНАЧКОВ*/}
@@ -483,7 +629,7 @@ export const ColorPicker = () => {
                                                         if(sign){
                                                             return (
                                                                 <div id={"sign" + signRowIndex + "-" + signCellIndex} className={'itemCell'} key={'signRow' + signCellIndex}>
-                                                                    <div onClick={() => deleteSign(signRowIndex, signCellIndex)}>
+                                                                    <div className={'flex'} onClick={() => deleteSign(signRowIndex, signCellIndex)}>
                                                                         <img className={'imgh30'} src={sign.file64} alt=""/>
                                                                     </div>
                                                                 </div>
@@ -503,8 +649,8 @@ export const ColorPicker = () => {
                             {/*СПИСОК МЕДАЛЕЙ*/}
                             <div className={'formItems'}>
                                 <div className={'flex'}>
-                                    <h2>{rightItemName.uiName}</h2>
-                                    <h2 onClick={() => switchRightItems()} className={'switchRightItemsBtn'}>{rightItemName.uiSwitchName}</h2>
+                                    <h2 className={rightItemName.name === 'medal' ? 'yellowItems' : 'redItems'}>{rightItemName.uiName}</h2>
+                                    <button onClick={() => switchRightItems()}>{rightItemName.uiSwitchName}</button>
                                 </div>
 
                                 {/*поиск*/}
@@ -515,8 +661,8 @@ export const ColorPicker = () => {
                                     <sp-menu>
                                         {filteredMedals.map((medal, index) => {
                                             return (
-                                                <sp-menu-item onClick={() => addMedal(medal)} className={'searchFormsBtn'} key={medal.name + index}>
-                                                    {medal.name}
+                                                <sp-menu-item onMouseEnter={() => previewMedal(medal)} onClick={() => addMedal(medal)} className={'searchFormsBtn'} key={medal.name + index}>
+                                                    <span className={rightItemName.name === 'medal' ? 'yellowItems' : 'redItems'}>{medal.name}</span>
                                                 </sp-menu-item>
                                             )
                                         })}
@@ -552,13 +698,14 @@ export const ColorPicker = () => {
                                 </div>
                             </div>
                         </div>
-
-                        <sp-button onClick={() => insertFormToPhotoshop()}>Подставить форму</sp-button>
+                        <div id={'controlButtons'}>
+                            <button onClick={() => backToChooseCategories()}>Назад</button>
+                            <sp-button onClick={() => insertFormToPhotoshop()}>Подставить форму</sp-button>
+                        </div>
                     </div>
                 )
+
             }})()}
-
-
 
         </div>
         );
