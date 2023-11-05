@@ -100,6 +100,11 @@
     width: 100%;
 }
 
+.additionalItems{
+    color: white;
+    padding-right: 20px;
+}
+
 .itemCell{
     margin-right: 5px;
     margin-top: 3px;
@@ -108,8 +113,28 @@
     height: 30px;
     border: 1px black solid;
 }
+.smallItemCell{
+    margin-right: 5px;
+    margin-top: 3px;
+    display: inline;
+    width: 20px;
+    height: 20px;
+    border: 1px black solid;
+}
+.gradeItemCell{
+    margin-right: 5px;
+    margin-top: 3px;
+    display: inline;
+    width: 40px;
+    height: 25px;
+    border: 1px black solid;
+}
 .absolute{
     position: absolute;
+}
+
+.startFlex{
+    display: flex;
 }
 
 .circleBtn{
@@ -150,6 +175,16 @@
     width: 30px;
     cursor: pointer;
 }
+.imgw40{
+    position: relative;
+    width: 40px;
+    cursor: pointer;
+}
+.imgw20{
+    position: relative;
+    width: 20px;
+    cursor: pointer;
+}
 button{
     cursor: pointer;
 }
@@ -175,6 +210,7 @@ sp-menu-item{
     height: 30px;
     cursor: pointer;
 }
+
 .zInd0{
     z-index: 4;
 }

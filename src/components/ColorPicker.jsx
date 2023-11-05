@@ -1,4 +1,4 @@
-import React, {forwardRef, useState} from "react";
+import React, {useState} from "react";
 
 
 import "./ColorPicker.css"
@@ -22,8 +22,8 @@ let medalsInRow = 4;
 let signRowsCount = 2;
 let signsInRow = 3;
 let currentFormFolder = ['allFiles','forms']
-
 let isInit = false;
+
 
 
 export const ColorPicker = () => {
@@ -40,22 +40,41 @@ export const ColorPicker = () => {
     let [currentForm, setCurrentForm] = useState(null);
     let [selectedMedals, setSelectedMedals] = useState([]);
     let [selectedSigns, setSelectedSigns] = useState([]);
+    let [selectedGrade, setSelectedGrade] = useState([]);
+    let [selectedLeftMedals, setSelectedLeftMedals] = useState([]);
+    let [selectedRightMedals, setSelectedRightMedals] = useState([]);
     let [initials, setInitials] = useState(null);
     let [isLoading, setIsLoading] = useState(false)
-    let [loadingProgressValue, setLoadingProgressValue] = useState('0')
-
-
+    let [loadingProgressValue, setLoadingProgressValue] = useState('0');
 
 
     init();
 
     async function init(){
-        if(!isInit){
+        if(isInit === false){
+            isInit = true;
             fetchManager.fetchFormCategory(await fileManager.getFolderByPath(currentFormFolder)).then(resolve => setFormCategory(resolve));
-            updateSelectedCells(await getItemSet('medal'));
-            updateSelectedCells(await getItemSet('sign'));
-            isInit = true
+            await updateSelectedCells(await getItemSet('medal'));
+            await updateSelectedCells(await getItemSet('sign'));
+            await updateSelectedCells(await getItemSet('grade'));
+            await updateSelectedCells(await getItemSet('leftMedal'));
+            await updateSelectedCells(await getItemSet('rightMedal'));
+            let fetchResolve = await fetchManager.fetchMedals(DEFAULT_MEDAL_ITEM_NAME)
+            setMedals(fetchResolve);
+            if(rightItemName.name === 'medal'){
+                setFilteredMedals(fetchResolve)
+            }
+            fetchResolve = await fetchManager.fetchMedals(DEFAULT_PLANKS_ITEM_NAME)
+            setPlanks(fetchResolve);
+            if(rightItemName.name === 'plank'){
+                setFilteredMedals(fetchResolve)
+            }
+            fetchResolve = await fetchManager.fetchSigns()
+            setSigns(fetchResolve);
+            setFilteredSigns(fetchResolve)
+
         }
+        isInit = true;
     }
 
 
@@ -162,6 +181,57 @@ export const ColorPicker = () => {
                 itemSet.itemSearchInput = 'medalsSearchInput'
                 break;
             }
+            case 'leftMedal': {
+                itemSet.search = medalsSearch;
+                itemSet.itemRowsCount = 1;
+                itemSet.itemsInRow = 3;
+                itemSet.itemsInRowSetter = medalsInRowSetter;
+                itemSet.minItemsInRow = 3;
+                itemSet.maxItemsInRow = 3;
+                itemSet.selectedItems = selectedLeftMedals;
+                itemSet.selectedSetter = setSelectedLeftMedals;
+                itemSet.allItems = medals;
+                itemSet.allItemsSetter = setMedals;
+                itemSet.filteredItems = filteredMedals;
+                itemSet.filteredSetter = setFilteredMedals;
+                itemSet.itemFolder = await fetchManager.getMedalsFolder({name: 'medal'});
+                itemSet.itemSearchInput = 'medalsSearchInput'
+                break;
+            }
+            case 'rightMedal': {
+                itemSet.search = medalsSearch;
+                itemSet.itemRowsCount = 1;
+                itemSet.itemsInRow = 3;
+                itemSet.itemsInRowSetter = medalsInRowSetter;
+                itemSet.minItemsInRow = 3;
+                itemSet.maxItemsInRow = 3;
+                itemSet.selectedItems = selectedRightMedals;
+                itemSet.selectedSetter = setSelectedRightMedals;
+                itemSet.allItems = medals;
+                itemSet.allItemsSetter = setMedals;
+                itemSet.filteredItems = filteredMedals;
+                itemSet.filteredSetter = setFilteredMedals;
+                itemSet.itemFolder = await fetchManager.getMedalsFolder({name: 'medal'});
+                itemSet.itemSearchInput = 'medalsSearchInput'
+                break;
+            }
+            case 'grade': {
+                itemSet.search = signsSearch;
+                itemSet.itemRowsCount = 1;
+                itemSet.itemsInRow = 1;
+                itemSet.itemsInRowSetter = signsInRowSetter;
+                itemSet.minItemsInRow = 1;
+                itemSet.maxItemsInRow = 1;
+                itemSet.selectedItems = selectedGrade;
+                itemSet.selectedSetter = setSelectedGrade;
+                itemSet.allItems = signs;
+                itemSet.allItemsSetter = setSigns;
+                itemSet.filteredItems = filteredSigns;
+                itemSet.filteredSetter = setFilteredSigns;
+                itemSet.itemFolder = await fetchManager.getSignsFolder();
+                itemSet.itemSearchInput = 'signsSearchInput'
+                break;
+            }
         }
         return itemSet;
 
@@ -173,12 +243,26 @@ export const ColorPicker = () => {
     }
     async function nextCategory(title, item) {
         currentFormFolder.push(item);
-        fetchManager.fetchFormCategory(await fileManager.getFolderByPath(currentFormFolder)).then(resolve => {
+        let formFolder = await fileManager.getFolderByPath(currentFormFolder);
+        fetchManager.fetchFormCategory(formFolder).then(resolve => {
             setFormCategory(resolve);
             if (resolve.formItems && resolve.formItems.length) {
                 setFilteredForms(resolve.formItems.filter(form => form.fileName.endsWith('.png')));
             }
         });
+    }
+
+    function hasSelected(selectedArray){
+        let has = false;
+        if(selectedArray && selectedArray.length){
+            selectedArray.forEach(row => {
+                has = row.some(item => item);
+                if(has){
+                    return has;
+                }
+            })
+        }
+        return has;
     }
 
     function search(value, array){
@@ -224,17 +308,11 @@ export const ColorPicker = () => {
         setInitials(value);
     }
 
-    async function readFileObj(folder, fileName){
-        let file = await folder.getEntry(fileName);
-        let bytes = await file.read({format: formats.binary});
-        return  {path: file.nativePath, bytes: bytes, file64: "data:image/png;base64," + util.arrayBufferToBase64(bytes)}
-    }
-
     async function toSignsAndMedals(form){
         setIsLoading(true);
         let folder = await fileManager.getFolderByPath(currentFormFolder);
                                                                             setLoadingProgressValue('0.6')
-        form.fileObj = await readFileObj(folder, form.fileName);
+        form.fileObj = await fileManager.readFileObj(folder, form.fileName);
                                                                             setLoadingProgressValue('0.9')
         form.config = await fetchManager.fetchFormConfig(currentFormFolder);
                                                                             setLoadingProgressValue('0.95')
@@ -243,30 +321,13 @@ export const ColorPicker = () => {
         }
         setCurrentForm(form);
         setIsLoading(false);
-        fetchManager.fetchMedals(DEFAULT_MEDAL_ITEM_NAME).then(resolve => {
-            setMedals(resolve);
-            if(rightItemName.name === 'medal'){
-                setFilteredMedals(resolve)
-            }
-        });
-        fetchManager.fetchMedals(DEFAULT_PLANKS_ITEM_NAME).then(resolve => {
-            setPlanks(resolve);
-            if(rightItemName.name === 'plank'){
-                setFilteredMedals(resolve)
-            }
-        })
-        fetchManager.fetchSigns().then(resolve => {
-            setSigns(resolve);
-            setFilteredSigns(resolve)
-        });
-
     }
 
-    async function addItemToCell(item, set){
-        let coord = defineCoordToAdd(set.selectedItems);
-        let fileObj = await readFileObj(set.itemFolder, item.fileName);
+    async function addItemToSelected(item, set){
+        let coordCell = defineCoordToAdd(set.selectedItems);
+        let fileObj = await fileManager.readFileObj(set.itemFolder, item.fileName);
         let newSelectedItems = JSON.parse(JSON.stringify(set.selectedItems));
-        newSelectedItems[coord.row][coord.cell] = {...item, ...fileObj};
+        newSelectedItems[coordCell.row][coordCell.cell] = {...item, ...fileObj};
         set.selectedSetter(newSelectedItems);
 
         let inAllItemIndex = util.indexOf(set.allItems, item);
@@ -284,15 +345,20 @@ export const ColorPicker = () => {
 
     function previewMedal(medal){
 
-
     }
 
     async function addMedal(medal) {
-        addItemToCell(medal, await getItemSet(rightItemName.name));
+        let itemName;
+        if(medal.itemName.name === 'medal' || medal.itemName.name === 'plank'){
+            itemName = rightItemName.name;
+        } else {
+            itemName = medal.itemName.name;
+        }
+        addItemToSelected(medal, await getItemSet(itemName));
     }
 
     async function addSign(sign){
-        addItemToCell(sign, await getItemSet('sign'));
+        addItemToSelected(sign, await getItemSet(sign.itemName.name));
     }
 
     function defineCoordToAdd(array){
@@ -322,9 +388,9 @@ export const ColorPicker = () => {
         return allItems
     }
 
-    async function deleteMedal(medalRowIndex, medalCellIndex) {
-        let itemName = selectedMedals[medalRowIndex][medalCellIndex].itemName;
-        let itemSet = await getItemSet(itemName.name);
+    async function deleteMedal(medalRowIndex, medalCellIndex, cellId) {
+        let itemSet = await getItemSet(cellId);
+        let itemName = itemSet.selectedItems[medalRowIndex][medalCellIndex].itemName;
         let allItems = deleteItemFromSelected(itemSet, medalRowIndex, medalCellIndex);
         if(rightItemName.name !== itemName.name){
             itemSet = await getItemSet(rightItemName.name);
@@ -333,8 +399,8 @@ export const ColorPicker = () => {
         itemSet.filteredSetter(search(itemSet.search, allItems))
     }
 
-    async function deleteSign(signRowIndex, signCellIndex){
-        let itemSet = await getItemSet('sign');
+    async function deleteSign(signRowIndex, signCellIndex, cellId){
+        let itemSet = await getItemSet(cellId);
         let allItems = deleteItemFromSelected(itemSet, signRowIndex, signCellIndex);
         itemSet.filteredSetter(search(itemSet.search, allItems))
     }
@@ -523,10 +589,17 @@ export const ColorPicker = () => {
         }
         setRightItemName(rightItemName);
     }
-
     return (
-
         <div className="pluginBody">
+            {(() => {
+                if(!isInit){
+                    return(
+                        <div>
+                            <progress className={'progress'} value={loadingProgressValue}/>
+                        </div>
+                    )
+                }
+            })()}
             <h1 id="mainTitle">Форма</h1>
             {(() => {
                 if(!currentForm){
@@ -613,15 +686,80 @@ export const ColorPicker = () => {
                                         {filteredSigns.map((sign, index) => {
                                             return (
                                                 <sp-menu-item onClick={() => addSign(sign)} className={'searchFormsBtn'} key={sign.name + index}>
-                                                    {sign.name}
+                                                    <span>{sign.name}</span>
+                                                    <img className={'imgw20'} src={sign.file64} alt=""/>
+
                                                 </sp-menu-item>
                                             )
                                         })}
                                     </sp-menu>
                                 </sp-card>
-                                {/*ВЫБРАННЫЕ ЗНАЧКИ*/}
+                                {/*ВЫБРАННЫЕ ЛЕВЫЕ МЕДАЛИ*/}
+                                {(() => {
+                                    if (hasSelected(selectedLeftMedals)) {
+                                        return (
+                                            <div id="leftMedalsItemsView" className={'flex'}>
+                                                <span className={'additionalItems'}>доп. медали</span>
+                                                {selectedLeftMedals.map((leftMedalsArray, leftMedalsRowIndex) => {
+                                                    return (
+                                                        <div className="itemRow flex" key={'leftMedalsRow' + leftMedalsRowIndex}>
+                                                            {leftMedalsArray.map((leftMedal, leftMedalCellIndex) => {
+                                                                if(leftMedal){
+                                                                    return (
+                                                                        <div id={"leftMedal" + leftMedalsRowIndex + "-" + leftMedalCellIndex} className={'smallItemCell'} key={'leftMedalRow' + leftMedalCellIndex}>
+                                                                            <div className={'flex'} onClick={() => deleteMedal(leftMedalsRowIndex, leftMedalCellIndex, 'leftMedal')}>
+                                                                                <img className={'imgw20'} src={leftMedal.file64} alt=""/>
+                                                                            </div>
+                                                                        </div>
+                                                                    )
+                                                                } else {
+                                                                    return (
+                                                                        <div id={"leftMedal" + leftMedalsRowIndex + "-" + leftMedalCellIndex} className={'smallItemCell'} key={'signRow' + leftMedalCellIndex}></div>
+                                                                    )
+                                                                }
+                                                            })}
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        )
+                                    }
+                                })()}
+                                {/*ВЫБРАННАЯ КЛАССНОСТЬ*/}
+                                {(() => {
+                                    if(hasSelected(selectedGrade)) {
+                                        return (
+                                            <div id="gradeItemsView" className={'flex'}>
+                                                <span className={'additionalItems'}>классность</span>
+                                                {selectedGrade.map((gradeArray, gradeRowIndex) => {
+                                                    return (
+                                                        <div className="itemRow flex" key={'gradeRow' + gradeRowIndex}>
+                                                            {gradeArray.map((grade, gradeCellIndex) => {
+                                                                if(grade){
+                                                                    return (
+                                                                        <div id={"grade" + gradeRowIndex + "-" + gradeCellIndex} className={'gradeItemCell'} key={'gradeMedalRow' + gradeCellIndex}>
+                                                                            <div className={'flex'} onClick={() => deleteSign(gradeRowIndex, gradeCellIndex, 'grade')}>
+                                                                                <img className={'imgw40'} src={grade.file64} alt=""/>
+                                                                            </div>
+                                                                        </div>
+                                                                    )
+                                                                } else {
+                                                                    return (
+                                                                        <div id={"grade" + gradeRowIndex + "-" + gradeCellIndex} className={'gradeItemCell'} key={'signRow' + gradeCellIndex}></div>
+                                                                    )
+                                                                }
+                                                            })}
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        );
+                                    }
+                                })()}
+
                                 <div id="signsItemsView" className={'flex'}>
                                     <div className={'wrapper'}>
+                                        {/*ВЫБРАННЫЕ ЗНАЧКИ*/}
                                         {selectedSigns.map((signRowArray, signRowIndex) => {
                                             return (
                                                 <div className="itemRow flex" key={'signRow' + signRowIndex}>
@@ -629,7 +767,7 @@ export const ColorPicker = () => {
                                                         if(sign){
                                                             return (
                                                                 <div id={"sign" + signRowIndex + "-" + signCellIndex} className={'itemCell'} key={'signRow' + signCellIndex}>
-                                                                    <div className={'flex'} onClick={() => deleteSign(signRowIndex, signCellIndex)}>
+                                                                    <div className={'flex'} onClick={() => deleteSign(signRowIndex, signCellIndex, 'sign')}>
                                                                         <img className={'imgh30'} src={sign.file64} alt=""/>
                                                                     </div>
                                                                 </div>
@@ -668,6 +806,38 @@ export const ColorPicker = () => {
                                         })}
                                     </sp-menu>
                                 </sp-card>
+                                {/*ВЫБРАННЫЕ ПРАВЫЕ МЕДАЛИ*/}
+                                {(() => {
+                                    if(hasSelected(selectedRightMedals)) {
+                                        return (
+                                            <div id="rightMedalsItemsView" className={'flex'}>
+                                                <span className={'additionalItems'}>доп. медали</span>
+                                                {selectedRightMedals.map((rightMedalsArray, rightMedalsRowIndex) => {
+                                                    return (
+                                                        <div className="itemRow flex" key={'rightMedalsRow' + rightMedalsRowIndex}>
+                                                            {rightMedalsArray.map((rightMedal, rightMedalCellIndex) => {
+                                                                if(rightMedal){
+                                                                    return (
+                                                                        <div id={"rightMedal" + rightMedalsRowIndex + "-" + rightMedalCellIndex} className={'smallItemCell'} key={'rightMedalRow' + rightMedalCellIndex}>
+                                                                            <div className={'flex'} onClick={() => deleteMedal(rightMedalsRowIndex, rightMedalCellIndex, 'rightMedal')}>
+                                                                                <img className={'imgw20'} src={rightMedal.file64} alt=""/>
+                                                                            </div>
+                                                                        </div>
+                                                                    )
+                                                                } else {
+                                                                    return (
+                                                                        <div id={"rightMedal" + rightMedalsRowIndex + "-" + rightMedalCellIndex} className={'smallItemCell'} key={'signRow' + rightMedalCellIndex}></div>
+                                                                    )
+                                                                }
+                                                            })}
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        )
+                                    }
+                                })()}
+
                                 {/*ВЫБРАННЫЕ МЕДАЛИ*/}
                                 <div id="medalsItemsView" className={'flex'}>
                                     <button className={'circleBtn'} onClick={() => changeItemsInRow(false, 'rightItem')}>-</button>
@@ -679,7 +849,7 @@ export const ColorPicker = () => {
                                                         if(medal){
                                                             return (
                                                                 <div id={"medal" + medalRowIndex + "-" + medalCellIndex} className={'itemCell'} key={'medalRow' + medalCellIndex}>
-                                                                    <div className={'absolute'} onClick={() => deleteMedal(medalRowIndex, medalCellIndex)}>
+                                                                    <div className={'absolute'} onClick={() => deleteMedal(medalRowIndex, medalCellIndex, 'medal')}>
                                                                         <img className={'imgw30 zInd' + medalRowIndex} src={medal.file64} alt=""/>
                                                                     </div>
                                                                 </div>

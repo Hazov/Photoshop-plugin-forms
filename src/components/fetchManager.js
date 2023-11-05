@@ -3,6 +3,7 @@ const fileManager = require('./fileManager').fileManager;
 const uxp = require('uxp')
 const storage = uxp.storage;
 const formats = storage.formats
+const ITEM_NAME_SEPARATOR = '---'
 
 export const fetchManager = {
     fetchFormCategory: async (folder) => {
@@ -21,31 +22,33 @@ export const fetchManager = {
     },
 
     fetchMedals: async (rightItemName) => {
-        if(/s+$/.test(rightItemName.name)){
-            rightItemName.name = rightItemName.name.replace(/s+$/, '')
+        let itemName = rightItemName;
+        if(/s+$/.test(itemName.name)){
+            itemName.name = itemName.name.replace(/s+$/, '')
         }
-        let medalsFolder = await fetchManager.getMedalsFolder(rightItemName);
+        let medalsFolder = await fetchManager.getMedalsFolder(itemName);
         let entries = await medalsFolder.getEntries();
-        return entries.filter(entry => entry.isFile).map(file => {return {itemName: rightItemName, fileName: file.name, name: file.name.split(/\.(?=[^.]+$)/)[0]}});
+        return entries.filter(entry => entry.isFile).map(file => fetchManager.getItem(file, itemName));
     },
 
     fetchSigns: async () => {
+        let itemName = {name: 'sign'};
         let signsFolder = await fetchManager.getSignsFolder();
         let entries = await signsFolder.getEntries();
-        return entries.filter(entry => entry.isFile).map(file => {return {itemName: {name: 'sign'}, fileName: file.name, name: file.name.split(/\.(?=[^.]+$)/)[0]}});
+        return entries.filter(entry => entry.isFile).map(file => fetchManager.getItem(file, itemName));
     },
 
-    getMedalsFolder: (rightItemName) => {
+    getMedalsFolder: async (rightItemName) => {
         if(/s+$/.test(rightItemName.name)){
             rightItemName.name = rightItemName.name.replace(/s+$/, '')
         }
         let medalsPath = 'allFiles/' + rightItemName.name + 's';
-        return fileManager.getFolderByPath(medalsPath);
+        return await fileManager.getFolderByPath(medalsPath);
     },
 
-    getSignsFolder: () => {
+    getSignsFolder: async () => {
         let signsPath = 'allFiles/signs';
-        return fileManager.getFolderByPath(signsPath);
+        return await fileManager.getFolderByPath(signsPath);
     },
     fetchFormConfig: async (folderPath) => {
         let formFolder = await fileManager.getFolderByPath(folderPath);
@@ -58,6 +61,17 @@ export const fetchManager = {
             }
         }
         return null;
+    },
+    getItem: (file, itemName) => {
+        let fileName = file.name;
+        let withoutExtensionName = fileName.split(/\.(?=[^.]+$)/)[0];
+        let itemNameSplit = fileName.split(ITEM_NAME_SEPARATOR);
+        if(itemNameSplit.length > 1) {
+            itemName = {};
+            itemName.name = itemNameSplit[0];
+            withoutExtensionName = withoutExtensionName.split(ITEM_NAME_SEPARATOR)[1];
+        }
+        return {itemName: itemName, fileName: file.name, name: withoutExtensionName}
     }
 
 }
