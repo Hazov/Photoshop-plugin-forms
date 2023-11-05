@@ -1,12 +1,15 @@
+import {FileManager} from "./fileManager";
 
 const photoshop = require('photoshop');
 const app = photoshop.app;
-const fileManager = require('./fileManager.js').fileManager;
-export const photoshopExecutor = {
-    execute: async (pluginFunc) => {
+const fileManager = new FileManager();
+
+export class PhotoshopExecutor {
+    async execute(pluginFunc) {
         return await photoshop.core.executeAsModal(pluginFunc);
-    },
-    insertImageToPhotoshop: async (filePath) => {
+    }
+
+    async insertImageToPhotoshop(filePath) {
         let insertDescriptor = [
             {
                 _obj: "placeEvent",
@@ -30,10 +33,10 @@ export const photoshopExecutor = {
                 }
             }
         ]
-        return await photoshopExecutor.execute(() => photoshop.action.batchPlay(insertDescriptor, {}));
-    },
+        return await this.execute(() => photoshop.action.batchPlay(insertDescriptor, {}));
+    }
 
-    resizeImage: async (percentValue) => {
+    async resizeImage(percentValue) {
         let resizeDescriptor =
             [
                 {
@@ -78,9 +81,10 @@ export const photoshopExecutor = {
                     }
                 }
             ];
-        await photoshopExecutor.execute(() => photoshop.action.batchPlay(resizeDescriptor, {}));
-    },
-    moveImage: async(offset) => {
+        await this.execute(() => photoshop.action.batchPlay(resizeDescriptor, {}));
+    }
+
+    async moveImage(offset) {
         let moveDescriptor =
             [
                 {
@@ -108,11 +112,10 @@ export const photoshopExecutor = {
                     }
                 }
             ];
-        await photoshopExecutor.execute(() => photoshop.action.batchPlay(moveDescriptor, {}));
+        await this.execute(() => photoshop.action.batchPlay(moveDescriptor, {}));
+    }
 
-    },
-
-    transformLayer : async (options) => {
+    async transformLayer(options) {
         let obj = {};
         obj._obj = "transform";
         obj._target = [
@@ -126,7 +129,7 @@ export const photoshopExecutor = {
             _enum: "quadCenterState",
             _value: "QCSAverage"
         };
-        if(options.offset){
+        if (options.offset) {
             obj.offset = {
                 _obj: "offset",
                 horizontal: {
@@ -139,7 +142,7 @@ export const photoshopExecutor = {
                 }
             }
         }
-        if(options.scale){
+        if (options.scale) {
             obj.width = {
                 _unit: "percentUnit",
                 _value: options.scale.width ? options.scale.width : options.scale
@@ -149,7 +152,7 @@ export const photoshopExecutor = {
                 _value: options.scale.height ? options.scale.height : options.scale
             }
         }
-        if(options.angle){
+        if (options.angle) {
             obj.angle = {
                 _unit: "angleUnit",
                 _value: options.angle
@@ -164,12 +167,14 @@ export const photoshopExecutor = {
             dialogOptions: "dontDisplay"
         }
         let transformDescriptor = [obj];
-        await photoshopExecutor.execute(() => photoshop.action.batchPlay(transformDescriptor, {}));
-    },
+        await this.execute(() => photoshop.action.batchPlay(transformDescriptor, {}));
+    }
 
-    selectLayers: async (layerIds) => {
+    async selectLayers(layerIds) {
         let layers = app.activeDocument.layers.filter(layer => layerIds.includes(layer.id));
-        let target = layers.map(layer => {return {_ref: 'layer', _name: layer.name}})
+        let target = layers.map(layer => {
+            return {_ref: 'layer', _name: layer.name}
+        })
         let selectDescriptor =
             [
                 {
@@ -182,9 +187,10 @@ export const photoshopExecutor = {
                     }
                 }
             ];
-        await photoshopExecutor.execute(() => photoshop.action.batchPlay(selectDescriptor, {}));
-    },
-    createTextLayer: async (text) => {
+        await this.execute(() => photoshop.action.batchPlay(selectDescriptor, {}));
+    }
+
+    async createTextLayer(text) {
         let textLayerDescriptor =
             [
                 {
@@ -424,10 +430,8 @@ export const photoshopExecutor = {
                     }
                 }
             ];
-        return await photoshopExecutor.execute(() => photoshop.action.batchPlay(textLayerDescriptor, {}));
+        return await this.execute(() => photoshop.action.batchPlay(textLayerDescriptor, {}));
     }
-
-
 }
 
 

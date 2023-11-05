@@ -2,20 +2,23 @@ import React, {useState} from "react";
 
 
 import "./ColorPicker.css"
+import {FetchManager} from "./fetchManager";
+import {Util} from "./util";
+import {FileManager} from "./fileManager";
+import {PhotoshopExecutor} from "./photoshopExecutor";
 
 
 const photoshop = require('photoshop');
-const uxp = require('uxp')
-const fileManager = require('./fileManager.js').fileManager;
-const fetchManager = require('./fetchManager.js').fetchManager;
-const util = require('./util.js').util;
-const executor = require('./photoshopExecutor.js').photoshopExecutor;
 const app = photoshop.app;
-const storage = uxp.storage;
 
-const DEFAULT_MEDAL_ITEM_NAME = {name: 'medal', uiName: 'Медали', uiSwitchName: 'Планки'};
-const DEFAULT_PLANKS_ITEM_NAME = {name: 'plank', uiName: 'Планки', uiSwitchName: 'Медали'};
-const DEFAULT_SIGNS_ITEM_NAME = {name: 'sign', uiName: 'Значки', uiSwitchName: 'Значки'};
+const fetchManager = new FetchManager();
+const util = new Util();
+const fileManager = new FileManager();
+const executor = new PhotoshopExecutor();
+
+const DEFAULT_MEDAL_ITEM_NAME = 'medal'
+const DEFAULT_PLANKS_ITEM_NAME = 'plank'
+const DEFAULT_SIGNS_ITEM_NAME = 'sign'
 
 let medalRowsCount = 3;
 let medalsInRow = 4;
@@ -26,7 +29,7 @@ let itemFiles = [];
 let isInit = false;
 
 export const ColorPicker = () => {
-    let [rightItemName, setRightItemName] = useState({name: 'medal', uiName: 'Медали', uiSwitchName: 'Планки'})
+    let [rightItemName, setRightItemName] = useState(DEFAULT_MEDAL_ITEM_NAME)
     let [medalsSearch, setMedalsSearch] = useState('');
     let [signsSearch, setSignsSearch] = useState('');
     let [formCategory, setFormCategory] = useState({title: '', categoryItems: []});
@@ -77,7 +80,7 @@ export const ColorPicker = () => {
 
     async function changeItemsInRow(isIncrease, itemName){
         if(itemName === 'rightItem'){
-            itemName = rightItemName.name
+            itemName = rightItemName
         }
         let itemSet = await getItemSet(itemName);
         if(isIncrease && itemSet.maxItemsInRow > itemSet.itemsInRow){
@@ -108,7 +111,7 @@ export const ColorPicker = () => {
         itemSet.selectedSetter(rowsArray);
         let groupedSelectedItems = util.groupBy(allSelectedItems, 'itemName');
         for (let group of groupedSelectedItems) {
-            let itemSet = await getItemSet(group[0].itemName.name);
+            let itemSet = await getItemSet(group[0].itemName);
             group.forEach(item => itemSet.allItems.push(item));
             itemSet.allItemsSetter(itemSet.allItems);
         }
@@ -117,9 +120,9 @@ export const ColorPicker = () => {
         }
     }
 
-    function getFile64(item, itemName) {
-        let filesOfItem = itemFiles[itemName];
-        let pair = filesOfItem.find(p => p.name === item.name);
+    function getFile64(item) {
+        let filesOfItem = itemFiles[item.itemName];
+        let pair = filesOfItem.find(p => _.isEqual(p.name, item.name));
         return pair.file.file64;
     }
     function medalsInRowSetter(count){
@@ -200,7 +203,7 @@ export const ColorPicker = () => {
                 itemSet.allItemsSetter = setMedals;
                 itemSet.filteredItems = filteredMedals;
                 itemSet.filteredSetter = setFilteredMedals;
-                itemSet.itemFolder = await fetchManager.getMedalsFolder({name: 'medal'});
+                itemSet.itemFolder = await fetchManager.getMedalsFolder('medal');
                 itemSet.itemSearchInput = 'medalsSearchInput'
                 break;
             }
@@ -217,7 +220,7 @@ export const ColorPicker = () => {
                 itemSet.allItemsSetter = setMedals;
                 itemSet.filteredItems = filteredMedals;
                 itemSet.filteredSetter = setFilteredMedals;
-                itemSet.itemFolder = await fetchManager.getMedalsFolder({name: 'medal'});
+                itemSet.itemFolder = await fetchManager.getMedalsFolder('medal');
                 itemSet.itemSearchInput = 'medalsSearchInput'
                 break;
             }
@@ -293,7 +296,7 @@ export const ColorPicker = () => {
     async function searchMedals(e){
         let value = e.target.value;
         setMedalsSearch(value);
-        let itemSet =  await getItemSet(rightItemName.name);
+        let itemSet =  await getItemSet(rightItemName);
         if(itemSet.allItems){
             setFilteredMedals(search(value, itemSet.allItems));
         }
@@ -333,47 +336,49 @@ export const ColorPicker = () => {
         setIsLoading(false);
     }
 
-    async function addItemToSelected(item, set){
-        let inAllItemIndex = util.indexOf(set.allItems, item);
-        let allArrayCopy = JSON.parse(JSON.stringify(set.allItems));
-        allArrayCopy.splice(inAllItemIndex, 1);
-        set.allItemsSetter(allArrayCopy);
-
-        let inFilteredItemIndex = util.indexOf(set.filteredItems, item);
-        let filteredArrayCopy = JSON.parse(JSON.stringify(set.filteredItems));
-        filteredArrayCopy.splice(inFilteredItemIndex, 1)
-        set.filteredSetter(filteredArrayCopy);
-
-        let coordCell = defineCoordToAdd(set.selectedItems);
-        let newSelectedItems = JSON.parse(JSON.stringify(set.selectedItems));
-        newSelectedItems[coordCell.row][coordCell.cell] = item;
-        set.selectedSetter(newSelectedItems);
-    }
-
-    function deleteItemFromSelected(set, rowIndex, cellIndex){
-        let newSelectedItems = JSON.parse(JSON.stringify(set.selectedItems));
-        let selectedItem = JSON.parse(JSON.stringify(newSelectedItems[rowIndex][cellIndex]));
-        newSelectedItems[rowIndex][cellIndex] = null;
-        let allItems = JSON.parse(JSON.stringify(set.allItems));
-        set.selectedSetter(newSelectedItems);
-        allItems.push(selectedItem);
-        allItems.sort((s1, s2) => (s1.name).localeCompare(s2.name));
-        set.allItemsSetter(allItems);
-        return allItems
-    }
-
-    async function addMedal(medal) {
+    function getActuallyItemName(item){
         let itemName;
-        if(medal.itemName === 'medal' || medal.itemName === 'plank'){
-            itemName = rightItemName.name;
+        if(item.itemName === 'medal' || item.itemName === 'plank'){
+            itemName = rightItemName;
         } else {
-            itemName = medal.itemName;
+            itemName = item.itemName;
         }
-        await addItemToSelected(medal, await getItemSet(itemName));
+        return itemName;
     }
 
-    async function addSign(sign){
-        await addItemToSelected(sign, await getItemSet(sign.itemName.name));
+    async function addItemToSelected(item){
+        let itemName = getActuallyItemName(item)
+        let itemSet = await getItemSet(itemName);
+
+        let coordCell = defineCoordToAdd(itemSet.selectedItems);
+        let newSelectedItems = JSON.parse(JSON.stringify(itemSet.selectedItems));
+        newSelectedItems[coordCell.row][coordCell.cell] = item;
+        itemSet.selectedSetter(newSelectedItems);
+
+        let inAllItemIndex = util.indexOf(itemSet.allItems, item);
+        let allItemsWithoutItem = itemSet.allItems.filter((item, index) => index !== inAllItemIndex);
+        itemSet.allItemsSetter(allItemsWithoutItem);
+
+        let inFilteredItemIndex = util.indexOf(itemSet.filteredItems, item);
+        let filteredItemsWithoutItem = itemSet.filteredItems.filter((item, index) => index !== inFilteredItemIndex);
+        itemSet.filteredSetter(filteredItemsWithoutItem);
+
+
+    }
+
+    async function deleteItemFromSelected(itemRowIndex, itemCellIndex, item){
+        let itemSet = await getItemSet(item.itemName);
+        let selectedItems = JSON.parse(JSON.stringify(itemSet.selectedItems));
+        let selectedItem = selectedItems[itemRowIndex][itemCellIndex];
+        let selectedItemCopy = JSON.parse(JSON.stringify(selectedItem));
+        selectedItems[itemRowIndex][itemCellIndex] = null;
+        itemSet.selectedSetter(selectedItems);
+        let allItems = itemSet.allItems.concat(selectedItemCopy);
+        allItems.sort((s1, s2) => (s1.name).localeCompare(s2.name));
+        itemSet.allItemsSetter(allItems);
+        
+        itemSet = await getItemSet(getActuallyItemName(item));
+        itemSet.filteredSetter(search(itemSet.search, itemSet.allItems))
     }
 
     function defineCoordToAdd(array){
@@ -390,24 +395,6 @@ export const ColorPicker = () => {
         }
         return {row: toAddRow, cell: toAddCell}
     }
-
-    async function deleteMedal(medalRowIndex, medalCellIndex, cellId) {
-        let itemSet = await getItemSet(cellId);
-        let itemName = itemSet.selectedItems[medalRowIndex][medalCellIndex].itemName;
-        let allItems = deleteItemFromSelected(itemSet, medalRowIndex, medalCellIndex);
-        if(rightItemName.name !== itemName.name){
-            itemSet = await getItemSet(rightItemName.name);
-            allItems = itemSet.allItems;
-        }
-        itemSet.filteredSetter(search(itemSet.search, allItems))
-    }
-
-    async function deleteSign(signRowIndex, signCellIndex, cellId){
-        let itemSet = await getItemSet(cellId);
-        let allItems = deleteItemFromSelected(itemSet, signRowIndex, signCellIndex);
-        itemSet.filteredSetter(search(itemSet.search, allItems))
-    }
-    
     function backToChooseCategories(){
         setCurrentForm(null);
     }
@@ -468,7 +455,7 @@ export const ColorPicker = () => {
         selectedItems.forEach((selectedRow, rowIdx) => {
             let onlyFilled = selectedRow.filter(item => item);
             onlyFilled.forEach((item, itemIdx) => {
-                item.offset = calculateOffset(rowIdx, itemIdx, onlyFilled.length, filledRowsCount, item.itemName.name);
+                item.offset = calculateOffset(rowIdx, itemIdx, onlyFilled.length, filledRowsCount, item.itemName);
                 finalItems.push(item);
             })
         })
@@ -491,7 +478,7 @@ export const ColorPicker = () => {
     async function transformAllItems(layersInfo){
         let itemNameLayersMap = new Map();
         layersInfo.forEach(info => {
-            let itemName = info.item.itemName.name;
+            let itemName = info.item.itemName;
             if(!itemNameLayersMap.get(itemName)){
                 itemNameLayersMap.set(itemName, []);
             }
@@ -574,23 +561,32 @@ export const ColorPicker = () => {
 
 
     function switchRightItems() {
-        switch (rightItemName.name){
+        switch (rightItemName){
             case 'plank': {
-                rightItemName.name = 'medal';
-                rightItemName.uiName = 'Медали';
-                rightItemName.uiSwitchName = 'Планки';
+                rightItemName = 'medal';
                 setFilteredMedals(search(medalsSearch, medals));
                 break;
             }
             case 'medal': {
-                rightItemName.name = 'plank';
-                rightItemName.uiName = 'Планки';
-                rightItemName.uiSwitchName = 'Медали';
+                rightItemName = 'plank';
                 setFilteredMedals(search(medalsSearch, planks));
                 break;
             }
         }
         setRightItemName(rightItemName);
+    }
+
+    function getUiName(itemName){
+        if(itemName === 'medal'){
+            return 'Медали';
+        }
+        return 'Планки';
+    }
+    function getSwitchName(itemName){
+        if(itemName === 'medal'){
+            return 'Планки';
+        }
+        return 'Медали';
     }
     return (
         <div className="pluginBody">
@@ -688,7 +684,7 @@ export const ColorPicker = () => {
                                     <sp-menu>
                                         {filteredSigns.map((sign, index) => {
                                             return (
-                                                <sp-menu-item onClick={() => addSign(sign)} className={'searchFormsBtn'} key={sign.name + index}>
+                                                <sp-menu-item onClick={() => addItemToSelected(sign)} className={'searchFormsBtn'} key={sign.name + index}>
                                                     <div className={'menu-item'}>
                                                         <span>{sign.name}</span>
                                                         <img className={'imgw20'} src={getFile64(sign, 'sign')} alt=""/>
@@ -711,7 +707,7 @@ export const ColorPicker = () => {
                                                                 if(leftMedal){
                                                                     return (
                                                                         <div id={"leftMedal" + leftMedalsRowIndex + "-" + leftMedalCellIndex} className={'smallItemCell'} key={'leftMedalRow' + leftMedalCellIndex}>
-                                                                            <div className={'flex'} onClick={() => deleteMedal(leftMedalsRowIndex, leftMedalCellIndex, 'leftMedal')}>
+                                                                            <div className={'flex'} onClick={() => deleteItemFromSelected(leftMedalsRowIndex, leftMedalCellIndex, leftMedal)}>
                                                                                 <img className={'imgw20'} src={getFile64(leftMedal, 'medal')} alt=""/>
                                                                             </div>
                                                                         </div>
@@ -742,7 +738,7 @@ export const ColorPicker = () => {
                                                                 if(grade){
                                                                     return (
                                                                         <div id={"grade" + gradeRowIndex + "-" + gradeCellIndex} className={'gradeItemCell'} key={'gradeMedalRow' + gradeCellIndex}>
-                                                                            <div className={'flex'} onClick={() => deleteSign(gradeRowIndex, gradeCellIndex, 'grade')}>
+                                                                            <div className={'flex'} onClick={() => deleteItemFromSelected(gradeRowIndex, gradeCellIndex, grade)}>
                                                                                 <img className={'imgw40'} src={getFile64(grade, 'sign')} alt=""/>
                                                                             </div>
                                                                         </div>
@@ -771,7 +767,7 @@ export const ColorPicker = () => {
                                                         if(sign){
                                                             return (
                                                                 <div id={"sign" + signRowIndex + "-" + signCellIndex} className={'itemCell'} key={'signRow' + signCellIndex}>
-                                                                    <div className={'flex'} onClick={() => deleteSign(signRowIndex, signCellIndex, 'sign')}>
+                                                                    <div className={'flex'} onClick={() => deleteItemFromSelected(signRowIndex, signCellIndex, sign)}>
                                                                         <img className={'imgh30'} src={getFile64(sign,'sign')} alt=""/>
                                                                     </div>
                                                                 </div>
@@ -791,8 +787,8 @@ export const ColorPicker = () => {
                             {/*СПИСОК МЕДАЛЕЙ*/}
                             <div className={'formItems'}>
                                 <div className={'flex'}>
-                                    <h2 className={rightItemName.name === 'medal' ? 'yellowItems' : 'redItems'}>{rightItemName.uiName}</h2>
-                                    <button onClick={() => switchRightItems()}>{rightItemName.uiSwitchName}</button>
+                                    <h2 className={rightItemName === 'medal' ? 'yellowItems' : 'redItems'}>{getUiName(rightItemName)}</h2>
+                                    <button onClick={() => switchRightItems()}>{getSwitchName(rightItemName)}</button>
                                 </div>
 
                                 {/*поиск*/}
@@ -803,9 +799,9 @@ export const ColorPicker = () => {
                                     <sp-menu>
                                         {filteredMedals.map((medal, index) => {
                                             return (
-                                                <sp-menu-item onMouseEnter={() => previewMedal(medal)} onClick={() => addMedal(medal)} className={'searchFormsBtn'} key={medal.name + index}>
+                                                <sp-menu-item onMouseEnter={() => previewMedal(medal)} onClick={() => addItemToSelected(medal)} className={'searchFormsBtn'} key={medal.name + index}>
                                                     <div className={'menu-item'}>
-                                                        <span className={rightItemName.name === 'medal' ? 'yellowItems' : 'redItems'}>{medal.name}</span>
+                                                        <span className={rightItemName === 'medal' ? 'yellowItems' : 'redItems'}>{medal.name}</span>
                                                         <img className={'imgw20'} src={getFile64(medal, 'medal')} alt=""/>
                                                     </div>
                                                 </sp-menu-item>
@@ -826,7 +822,7 @@ export const ColorPicker = () => {
                                                                 if(rightMedal){
                                                                     return (
                                                                         <div id={"rightMedal" + rightMedalsRowIndex + "-" + rightMedalCellIndex} className={'smallItemCell'} key={'rightMedalRow' + rightMedalCellIndex}>
-                                                                            <div className={'flex'} onClick={() => deleteMedal(rightMedalsRowIndex, rightMedalCellIndex, 'rightMedal')}>
+                                                                            <div className={'flex'} onClick={() => deleteItemFromSelected(rightMedalsRowIndex, rightMedalCellIndex, rightMedal)}>
                                                                                 <img className={'imgw20'} src={getFile64(rightMedal, 'medal')} alt=""/>
                                                                             </div>
                                                                         </div>
@@ -856,7 +852,7 @@ export const ColorPicker = () => {
                                                         if(medal){
                                                             return (
                                                                 <div id={"medal" + medalRowIndex + "-" + medalCellIndex} className={'itemCell'} key={'medalRow' + medalCellIndex}>
-                                                                    <div className={'absolute'} onClick={() => deleteMedal(medalRowIndex, medalCellIndex, 'medal')}>
+                                                                    <div className={'absolute'} onClick={() => deleteItemFromSelected(medalRowIndex, medalCellIndex, medal)}>
                                                                         <img className={'imgw30 zInd' + medalRowIndex} src={getFile64(medal, 'medal')} alt=""/>
                                                                     </div>
                                                                 </div>
