@@ -170,6 +170,12 @@
     padding-top: 30px;
 }
 
+.menu-item{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
 .imgw30{
     position: relative;
     width: 30px;
