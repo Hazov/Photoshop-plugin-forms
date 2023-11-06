@@ -1,4 +1,5 @@
 import {Util} from "./util";
+import {UxpFile} from "../entities/UxpFile";
 
 const uxp = require('uxp');
 const storage = uxp.storage;
@@ -26,7 +27,20 @@ export class FileManager {
      async readFileObj(folder, fileName){
         let file = await folder.getEntry(fileName);
         let bytes = await file.read({format: formats.binary});
-        return  {path: file.nativePath, bytes: bytes, file64: "data:image/png;base64," + util.arrayBufferToBase64(bytes)}
+        let file64 = "data:image/png;base64," + util.arrayBufferToBase64(bytes);
+        let nativePath = file.nativePath;
+        return new UxpFile(fileName, nativePath, bytes, file64);
+    }
+
+    async getAllFilesFromFolder(folder){
+         let allFiles = [];
+         let entries = await folder.getEntries();
+         entries = entries.filter(entry => entry.isFile);
+         for(let entry of entries){
+             let file = await this.readFileObj(folder, entry.name);
+             allFiles.push(file);
+         }
+         return allFiles;
     }
 }
 

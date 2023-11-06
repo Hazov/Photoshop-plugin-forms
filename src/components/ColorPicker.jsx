@@ -27,6 +27,9 @@ let signsInRow = 3;
 let currentFormFolder = ['allFiles','forms'];
 let itemFiles = [];
 let isInit = false;
+let straps = [];
+
+let itemNamesList = ['medal', 'plank', 'sign', 'grade', 'leftMedal', 'rightMedal'];
 
 export const ColorPicker = () => {
     let [rightItemName, setRightItemName] = useState(DEFAULT_MEDAL_ITEM_NAME)
@@ -48,35 +51,33 @@ export const ColorPicker = () => {
     let [initials, setInitials] = useState(null);
     let [isLoading, setIsLoading] = useState(false)
     let [loadingProgressValue, setLoadingProgressValue] = useState('0');
+    let [formPreview, setFormPreview] = useState(null);
 
-
-    init();
-
+    init().then(ignore => {});
     async function init(){
-        if(isInit === false){
+        if(!isInit) {
             isInit = true;
+            //Загрузка начальной категории
             fetchManager.fetchFormCategory(await fileManager.getFolderByPath(currentFormFolder)).then(resolve => setFormCategory(resolve));
-            await updateSelectedCells(await getItemSet('medal'));
-            await updateSelectedCells(await getItemSet('plank'));
-            await updateSelectedCells(await getItemSet('sign'));
-            await updateSelectedCells(await getItemSet('grade'));
-            await updateSelectedCells(await getItemSet('leftMedal'));
-            await updateSelectedCells(await getItemSet('rightMedal'));
+            //Загрузка ячеек для выбора
+            for (let itemName of itemNamesList) {
+                await updateSelectedCells(await getItemSet(itemName));
+            }
+            //Загрузка всех погон
+            straps = await fetchManager.fetchStraps();
+            //Загрузка всех медалей
             let fetchResolve = await fetchManager.fetchItems(await getItemSet(DEFAULT_MEDAL_ITEM_NAME, true), itemFiles)
             setMedals(fetchResolve);
             setFilteredMedals(fetchResolve)
-
+            //Загрузка всех планок
             fetchResolve = await fetchManager.fetchItems(await getItemSet(DEFAULT_PLANKS_ITEM_NAME, true), itemFiles)
             setPlanks(fetchResolve);
-
+            //Загрузка всех значков
             fetchResolve = await fetchManager.fetchItems(await getItemSet(DEFAULT_SIGNS_ITEM_NAME), itemFiles)
             setSigns(fetchResolve);
             setFilteredSigns(fetchResolve)
-
         }
-        isInit = true;
     }
-
 
     async function changeItemsInRow(isIncrease, itemName){
         if(itemName === 'rightItem'){
@@ -90,7 +91,7 @@ export const ColorPicker = () => {
         } else {
             return;
         }
-        updateSelectedCells(itemSet);
+        await updateSelectedCells(itemSet);
     }
     async function updateSelectedCells(itemSet) {
         let allSelectedItems = itemSet.selectedItems.flatMap(item => item);
@@ -124,6 +125,20 @@ export const ColorPicker = () => {
         let filesOfItem = itemFiles[item.itemName];
         let pair = filesOfItem.find(p => _.isEqual(p.name, item.name));
         return pair.file.file64;
+    }
+
+    function getStrap(form){
+        let strapNumber = form.name.split('.')[0];
+        let strap = straps.find(strap => strap.name.split('.')[0] === strapNumber);
+        return strap.file.file64;
+    }
+
+    function showPreview(form){
+        setFormPreview(form);
+    }
+
+    function hidePreview(){
+        setFormPreview(null);
     }
     function medalsInRowSetter(count){
         medalsInRow = count;
@@ -253,12 +268,18 @@ export const ColorPicker = () => {
     async function nextCategory(title, item) {
         currentFormFolder.push(item);
         let formFolder = await fileManager.getFolderByPath(currentFormFolder);
-        fetchManager.fetchFormCategory(formFolder).then(resolve => {
-            setFormCategory(resolve);
-            if (resolve.formItems && resolve.formItems.length) {
-                setFilteredForms(resolve.formItems.filter(form => form.fileName.endsWith('.png')));
-            }
-        });
+        let resolve = await fetchManager.fetchFormCategory(formFolder)
+        setFormCategory(resolve);
+        //Если категория - это список форм
+        if (resolve.formItems && resolve.formItems.length) {
+            let filteredForms = resolve.formItems.filter(form => form.fileName.endsWith('.png'));
+            filteredForms = filteredForms.sort(sortForms)
+            setFilteredForms(filteredForms);
+        }
+    }
+
+    function sortForms(form1, form2){
+        return Number(form1.name.split('.')[0]) < Number(form2.name.split('.')[0]) ?  -1 : 1;
     }
 
     function hasSelected(selectedArray){
@@ -284,13 +305,11 @@ export const ColorPicker = () => {
         }
     }
 
-    function previewMedal(){
-
-    }
-
     function searchForms(e) {
         if(formCategory && formCategory.formItems){
-            setFilteredForms(search(e.target.value, formCategory.formItems));
+            let searchedForms = search(e.target.value, formCategory.formItems);
+            searchedForms = searchedForms.sort(sortForms);
+            setFilteredForms(searchedForms);
         }
     }
     async function searchMedals(e){
@@ -325,8 +344,6 @@ export const ColorPicker = () => {
         setIsLoading(true);
         let folder = await fileManager.getFolderByPath(currentFormFolder);
                                                                             setLoadingProgressValue('0.6')
-        form.fileObj = await fileManager.readFileObj(folder, form.fileName);
-                                                                            setLoadingProgressValue('0.9')
         form.config = await fetchManager.fetchFormConfig(currentFormFolder);
                                                                             setLoadingProgressValue('0.95')
         if(form.config && form.config['rightItemsDefault'] === 'plank'){
@@ -376,7 +393,7 @@ export const ColorPicker = () => {
         let allItems = itemSet.allItems.concat(selectedItemCopy);
         allItems.sort((s1, s2) => (s1.name).localeCompare(s2.name));
         itemSet.allItemsSetter(allItems);
-        
+
         itemSet = await getItemSet(getActuallyItemName(item));
         itemSet.filteredSetter(search(itemSet.search, itemSet.allItems))
     }
@@ -401,7 +418,7 @@ export const ColorPicker = () => {
 
     async function insertFormToPhotoshop() {
          try{
-             let insertFormResult = await executor.insertImageToPhotoshop(currentForm.fileObj.path);
+             let insertFormResult = await executor.insertImageToPhotoshop(currentForm.file.path);
              //Айтемы
              let medalLayerIds = await insertFormItemsToPhotoshop(selectedMedals);
              let signLayerIds = await insertFormItemsToPhotoshop(selectedSigns);
@@ -634,13 +651,19 @@ export const ColorPicker = () => {
                                                         <sp-menu>
                                                             {filteredForms.map((form, index) => {
                                                                 return (
-                                                                    <sp-menu-item onClick={() => toSignsAndMedals(form)} className={'searchFormsBtn'} key={form.name + index}>
-                                                                        {form.name}
+                                                                    <sp-menu-item onMouseEnter={() => showPreview(form)} onMouseLeave={() => hidePreview()} onClick={() => toSignsAndMedals(form)} className={'searchFormsBtn'} key={form.name + index}>
+                                                                        <div className={'menu-item'}>
+                                                                            <span>{form.name}</span>
+                                                                            <img className={'imgw60'} src={getStrap(form)} alt=""/>
+                                                                        </div>
                                                                     </sp-menu-item>
                                                                 )
                                                             })}
                                                         </sp-menu>
                                                     </sp-card>
+                                                    <div class={'formPreview'}>
+                                                        <img src={formPreview?.file?.file64} alt=""/>
+                                                    </div>
                                                 </div>
                                             )
                                         } else {
@@ -666,7 +689,7 @@ export const ColorPicker = () => {
                     <div>
                         <div className={'flex'}>
                             <div id="formItemView">
-                                <img className={'img100'} src={currentForm.fileObj.file64} alt=""/>
+                                <img className={'img100'} src={currentForm.file.file64} alt=""/>
                             </div>
                             <div className={'width70'} id="initials">
                                 <sp-textfield value={initials} onInput={setInitialsValue} placeholder="Фамилия И.О." id ="initialInput" type="input"></sp-textfield>
@@ -680,7 +703,7 @@ export const ColorPicker = () => {
                                 <sp-textfield id="signsSearchInput" onInput={searchSigns} class ="searchInput" type="search">
                                 </sp-textfield>
                                 {/*список*/}
-                                <sp-card id="formList">
+                                <sp-card id="signList">
                                     <sp-menu>
                                         {filteredSigns.map((sign, index) => {
                                             return (
@@ -795,11 +818,11 @@ export const ColorPicker = () => {
                                 <sp-textfield id="medalsSearchInput" onInput={searchMedals} class ="searchInput" type="search">
                                 </sp-textfield>
                                 {/*список*/}
-                                <sp-card id="formList">
+                                <sp-card id="medalList">
                                     <sp-menu>
                                         {filteredMedals.map((medal, index) => {
                                             return (
-                                                <sp-menu-item onMouseEnter={() => previewMedal(medal)} onClick={() => addItemToSelected(medal)} className={'searchFormsBtn'} key={medal.name + index}>
+                                                <sp-menu-item onClick={() => addItemToSelected(medal)} className={'searchFormsBtn'} key={medal.name + index}>
                                                     <div className={'menu-item'}>
                                                         <span className={rightItemName === 'medal' ? 'yellowItems' : 'redItems'}>{medal.name}</span>
                                                         <img className={'imgw20'} src={getFile64(medal, 'medal')} alt=""/>

@@ -30,17 +30,34 @@
 }
 
 #prevCategoryBtn{
-    margin-top: 15px;
+    position: absolute;
+    left: 30px;
+    bottom: 30px;
 }
 
 #formList{
     overflow: auto;
-    height: 160px;
+    height: 250px;
     margin-top: 15px;
     border-radius: 10px;
     background-color: #252525;
     width: 100%;
 }
+#signList{
+    overflow: auto;
+    height: 190px;
+    margin-top: 15px;
+    border-radius: 10px;
+    background-color: #252525;
+    width: 100%;
+}#medalList{
+     overflow: auto;
+     height: 190px;
+     margin-top: 15px;
+     border-radius: 10px;
+     background-color: #252525;
+     width: 100%;
+ }
 
 #initials{
     display: flex;
@@ -176,14 +193,19 @@
     align-items: center;
 }
 
-.imgw30{
+.imgw60{
     position: relative;
-    width: 30px;
+    width: 60px;
     cursor: pointer;
 }
 .imgw40{
     position: relative;
     width: 40px;
+    cursor: pointer;
+}
+.imgw30{
+    position: relative;
+    width: 30px;
     cursor: pointer;
 }
 .imgw20{
@@ -228,6 +250,12 @@ sp-menu-item{
 }
 .zInd3{
     z-index: 1;
+}
+
+.formPreview{
+    position: absolute;
+    right: 30px;
+    bottom: 30px;
 }
 
 .img100{

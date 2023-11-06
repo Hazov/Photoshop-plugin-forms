@@ -1,4 +1,7 @@
 import {FileManager} from "./fileManager";
+import {Util} from "./util";
+import {FormCategory} from "../entities/FormCategory";
+import {Form} from "../entities/Form";
 
 const uxp = require('uxp')
 const storage = uxp.storage;
@@ -6,20 +9,26 @@ const formats = storage.formats
 const ITEM_NAME_SEPARATOR = '---'
 
 const fileManager = new FileManager();
+const util = new Util();
 
 export class FetchManager {
      async fetchFormCategory(folder){
+         let category = new FormCategory(null, null);
+
         let entries = await folder.getEntries();
         let infoFile = entries.find(entry => entry.name.includes('.info'));
         if (infoFile) {
-            let title = infoFile.name.split('.info')[0];
-            let categoryItems = entries.filter(entry => entry.isFolder).map(folder => folder.name);
-            return {title: title, categoryItems: categoryItems};
+            category.title = infoFile.name.split('.info')[0];
+            category.categoryItems = entries.filter(entry => entry.isFolder).map(folder => folder.name);
+            return category;
         } else {
-            let formItems = entries.filter(entry => entry.isFile).map(file => {
-                return {fileName: file.name, name: file.name.split((/\.(?=[^.]+$)/))[0]}
-            });
-            return {title: null, categoryItems: null, formItems: formItems}
+            let forms = entries.filter(entry => entry.isFile).map(file => new Form(file.name, util.withoutExtensionName(file)));
+            folder = await folder.getEntry('previews');
+            for(let form of forms){
+                form.file = await fileManager.readFileObj(folder, form.fileName);
+            }
+            category.formItems = forms;
+            return category;
         }
     }
 
@@ -40,6 +49,18 @@ export class FetchManager {
             items.push(item);
         }
         return items;
+    }
+
+    async fetchStraps(){
+         let straps = [];
+         let strapsFolder = await fileManager.getFolderByPath('allFiles/straps');
+         for(let entry of await strapsFolder.getEntries()){
+             let strap = {};
+             strap.file = await fileManager.readFileObj(strapsFolder, entry.name);
+             strap.name = util.withoutExtensionName(strap.file);
+             straps.push(strap);
+         }
+         return straps;
     }
 
      async getMedalsFolder(rightItemName){
@@ -68,7 +89,7 @@ export class FetchManager {
     }
      async getItem(folder, file, itemName){
         let fileName = file.name;
-        let withoutExtensionName = fileName.split(/\.(?=[^.]+$)/)[0];
+        let withoutExtensionName = util.withoutExtensionName(file);
         let itemNameSplit = fileName.split(ITEM_NAME_SEPARATOR);
         if(itemNameSplit.length > 1) {
             itemName = itemNameSplit[0];
@@ -76,6 +97,12 @@ export class FetchManager {
         }
 
         return {itemName: itemName, fileName: file.name, name: withoutExtensionName}
+    }
+
+    async fetchFormPreviews(formFolder) {
+        formFolder.push('previews');
+        return await fileManager.getAllFilesFromFolder(formFolder);
+
     }
 }
 

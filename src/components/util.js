@@ -44,6 +44,9 @@ export class Util{
         }
         return hash;
     }
+    withoutExtensionName(file){
+         return file.name.split(/\.(?=[^.]+$)/)[0];
+    }
 }
 
 
