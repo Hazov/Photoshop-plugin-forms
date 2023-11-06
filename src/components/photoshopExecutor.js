@@ -170,7 +170,7 @@ export class PhotoshopExecutor {
         await this.execute(() => photoshop.action.batchPlay(transformDescriptor, {}));
     }
 
-    async selectLayers(layerIds) {
+    async setLayers(layerIds) {
         let layers = app.activeDocument.layers.filter(layer => layerIds.includes(layer.id));
         let target = layers.map(layer => {
             return {_ref: 'layer', _name: layer.name}
@@ -188,6 +188,65 @@ export class PhotoshopExecutor {
                 }
             ];
         await this.execute(() => photoshop.action.batchPlay(selectDescriptor, {}));
+    }
+
+    async selectAll(selection = 'allEnum'){
+        const selectAlDescriptor =
+            [
+                {
+                    _obj: "set",
+                    _target: [
+                        {
+                            _ref: "channel",
+                            _property: "selection"
+                        }
+                    ],
+                    to: {
+                        _enum: "ordinal",
+                        _value: selection
+                    },
+                    _options: {
+                        dialogOptions: "dontDisplay"
+                    }
+                }
+            ];
+        await this.execute(() => photoshop.action.batchPlay(selectAlDescriptor, {}));
+    }
+
+    async deselectAll(){
+        this.selectAll('none');
+    }
+
+    async alignLayer(direction){
+        const alignDescriptor =
+            [
+                {
+                    _obj: "align",
+                    _target: [
+                        {
+                            _ref: "layer",
+                            _enum: "ordinal",
+                            _value: "targetEnum"
+                        }
+                    ],
+                    using: {
+                        _enum: "alignDistributeSelector",
+                        _value: direction
+                    },
+                    alignToCanvas: false,
+                    _options: {
+                        dialogOptions: "dontDisplay"
+                    }
+                }
+            ];
+        await this.execute(() => photoshop.action.batchPlay(alignDescriptor, {}));
+    }
+
+    async alignCenterLayer(){
+        await this.selectAll();
+        await this.alignLayer("ADSCentersH");
+        await this.alignLayer("ADSCentersV");
+        await this.deselectAll();
     }
 
     async createTextLayer(text) {

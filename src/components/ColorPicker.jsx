@@ -5,6 +5,7 @@ import "./ColorPicker.css"
 import {FetchManager} from "./fetchManager";
 import {Util} from "./util";
 import {FileManager} from "./fileManager";
+import {SortService} from "./sortService";
 import {PhotoshopExecutor} from "./photoshopExecutor";
 
 
@@ -14,6 +15,7 @@ const app = photoshop.app;
 const fetchManager = new FetchManager();
 const util = new Util();
 const fileManager = new FileManager();
+const sortService = new SortService();
 const executor = new PhotoshopExecutor();
 
 const DEFAULT_MEDAL_ITEM_NAME = 'medal'
@@ -122,9 +124,12 @@ export const ColorPicker = () => {
     }
 
     function getFile64(item) {
+        return getItemFile(item).file64;
+    }
+    function getItemFile(item){
         let filesOfItem = itemFiles[item.itemName];
         let pair = filesOfItem.find(p => _.isEqual(p.name, item.name));
-        return pair.file.file64;
+        return pair.file;
     }
 
     function getStrap(form){
@@ -272,14 +277,10 @@ export const ColorPicker = () => {
         setFormCategory(resolve);
         //Если категория - это список форм
         if (resolve.formItems && resolve.formItems.length) {
-            let filteredForms = resolve.formItems.filter(form => form.fileName.endsWith('.png'));
-            filteredForms = filteredForms.sort(sortForms)
+            let filteredForms = resolve.formItems;
+            filteredForms = filteredForms.sort(sortService.sortForms)
             setFilteredForms(filteredForms);
         }
-    }
-
-    function sortForms(form1, form2){
-        return Number(form1.name.split('.')[0]) < Number(form2.name.split('.')[0]) ?  -1 : 1;
     }
 
     function hasSelected(selectedArray){
@@ -308,7 +309,7 @@ export const ColorPicker = () => {
     function searchForms(e) {
         if(formCategory && formCategory.formItems){
             let searchedForms = search(e.target.value, formCategory.formItems);
-            searchedForms = searchedForms.sort(sortForms);
+            searchedForms = searchedForms.sort(sortService.sortForms);
             setFilteredForms(searchedForms);
         }
     }
@@ -341,8 +342,7 @@ export const ColorPicker = () => {
     }
 
     async function toSignsAndMedals(form){
-        setIsLoading(true);
-        let folder = await fileManager.getFolderByPath(currentFormFolder);
+                                                                            setIsLoading(true);
                                                                             setLoadingProgressValue('0.6')
         form.config = await fetchManager.fetchFormConfig(currentFormFolder);
                                                                             setLoadingProgressValue('0.95')
@@ -350,7 +350,7 @@ export const ColorPicker = () => {
             switchRightItems();
         }
         setCurrentForm(form);
-        setIsLoading(false);
+                                                                            setIsLoading(false);
     }
 
     function getActuallyItemName(item){
@@ -418,10 +418,12 @@ export const ColorPicker = () => {
 
     async function insertFormToPhotoshop() {
          try{
+             currentForm.config = await fetchManager.fetchFormConfig(currentFormFolder);
              let insertFormResult = await executor.insertImageToPhotoshop(currentForm.file.path);
              //Айтемы
              let medalLayerIds = await insertFormItemsToPhotoshop(selectedMedals);
              let signLayerIds = await insertFormItemsToPhotoshop(selectedSigns);
+             let gradeLayerIds = await insertFormItemsToPhotoshop(selectedGrade);
 
              let textLayerResult;
              let formLayer = app.activeDocument.layers.find(layer => layer.id === insertFormResult[0].ID);
@@ -430,12 +432,13 @@ export const ColorPicker = () => {
                  textLayerResult =  await executor.createTextLayer(initials);
                  let initialsLayer = app.activeDocument.layers.find(layer => layer.id === textLayerResult[0].layerID)
                  textLayerResult = [textLayerResult[0].layerID];
-                 await executor.transformLayer(getInitialsTransformOptions(formLayer, initialsLayer))
+                 await executor.alignCenterLayer();
+                 await executor.transformLayer(getTransformOptions('initials', initialsLayer))
              } else {
                  textLayerResult = [];
              }
 
-             await executor.selectLayers([ formLayer.id, ...medalLayerIds, ...signLayerIds, ...textLayerResult]);
+             await executor.setLayers([ formLayer.id, ...medalLayerIds, ...signLayerIds, ...textLayerResult, ...gradeLayerIds]);
              let resizePercentValue = getResizeFormValue(formLayer);
              await executor.resizeImage(resizePercentValue);
          } catch (e) {
@@ -444,20 +447,6 @@ export const ColorPicker = () => {
 
     }
 
-    function getInitialsTransformOptions(formLayer, initialsLayer){
-        let transformOptions = getTransformOptions('initials', initialsLayer);
-
-        if(!transformOptions.offset || !transformOptions.offset.vertical){
-            transformOptions.offset.vertical = 0;
-        }
-        if(!transformOptions.offset || !transformOptions.offset.horizontal){
-            transformOptions.offset.horizontal = 0;
-        }
-        transformOptions = {offset: {}}
-        transformOptions.offset.vertical = formLayer.bounds.top;
-        transformOptions.offset.horizontal = (formLayer.bounds.right - formLayer.bounds.left) / 2;
-        return transformOptions;
-    }
     function getResizeFormValue(formLayer){
         if(formLayer){
             let docWidth = app.activeDocument.width;
@@ -467,49 +456,64 @@ export const ColorPicker = () => {
     }
 
     async function insertFormItemsToPhotoshop(selectedItems){
-        let finalItems = [];
-        let filledRowsCount = selectedItems.filter(row => row.some(item => item)).length;
-        selectedItems.forEach((selectedRow, rowIdx) => {
-            let onlyFilled = selectedRow.filter(item => item);
-            onlyFilled.forEach((item, itemIdx) => {
-                item.offset = calculateOffset(rowIdx, itemIdx, onlyFilled.length, filledRowsCount, item.itemName);
-                finalItems.push(item);
-            })
-        })
+        try{
+            let finalItems = [];
+            let filledRowsCount = selectedItems.filter(row => row.some(item => item)).length;
+            try{
+                selectedItems.forEach((selectedRow, rowIdx) => {
+                    let onlyFilled = selectedRow.filter(item => item);
+                    onlyFilled.forEach((item, itemIdx) => {
+                        item.offset = calculateOffset(rowIdx, itemIdx, onlyFilled.length, filledRowsCount, item.itemName);
+                        finalItems.push(item);
+                    })
+                })
+            } catch (e){
+                console.log(e)
+            }
 
-        finalItems = finalItems.reverse();
-        let layersInfo = [];
-        for(let item of finalItems){
-            let itemLayerId = await placeItem(item);
-            layersInfo.push({item: item, layerId: itemLayerId});
+
+            finalItems = finalItems.reverse();
+            let layersInfo = [];
+            for(let item of finalItems){
+                let itemLayerId = await placeItem(item);
+                layersInfo.push({item: item, layerId: itemLayerId});
+            }
+            await transformAllItems(layersInfo);
+            return layersInfo.map(info => info.layerId);
+        } catch(e){
+            console.log(e)
         }
-        await transformAllItems(layersInfo);
-        return layersInfo.map(info => info.layerId);
+
     }
 
     async function placeItem(item){
-        let insertResult = await executor.insertImageToPhotoshop(item.path);
+        let insertResult = await executor.insertImageToPhotoshop(getItemFile(item).path);
         await executor.moveImage(item.offset);
         return insertResult[0].ID;
     }
     async function transformAllItems(layersInfo){
-        let itemNameLayersMap = new Map();
-        layersInfo.forEach(info => {
-            let itemName = info.item.itemName;
-            if(!itemNameLayersMap.get(itemName)){
-                itemNameLayersMap.set(itemName, []);
-            }
-            itemNameLayersMap.get(itemName).push(info.layerId);
-        })
+        try{
+            let itemNameLayersMap = new Map();
+            layersInfo.forEach(info => {
+                let itemName = info.item.itemName;
+                if(!itemNameLayersMap.get(itemName)){
+                    itemNameLayersMap.set(itemName, []);
+                }
+                itemNameLayersMap.get(itemName).push(info.layerId);
+            })
 
-        for(let itemName of itemNameLayersMap.keys()){
-            let layerIds = itemNameLayersMap.get(itemName);
-            let options = getTransformOptions(itemName)
-            if(options){
-                await executor.selectLayers(layerIds);
-                await executor.transformLayer(options);
+            for(let itemName of itemNameLayersMap.keys()){
+                let layerIds = itemNameLayersMap.get(itemName);
+                let options = getTransformOptions(itemName)
+                if(options){
+                    await executor.setLayers(layerIds);
+                    await executor.transformLayer(options);
+                }
             }
+        } catch (e){
+            console.log(e)
         }
+
     }
 
 
@@ -661,7 +665,7 @@ export const ColorPicker = () => {
                                                             })}
                                                         </sp-menu>
                                                     </sp-card>
-                                                    <div class={'formPreview'}>
+                                                    <div className={'formPreview'}>
                                                         <img src={formPreview?.file?.file64} alt=""/>
                                                     </div>
                                                 </div>
@@ -710,7 +714,7 @@ export const ColorPicker = () => {
                                                 <sp-menu-item onClick={() => addItemToSelected(sign)} className={'searchFormsBtn'} key={sign.name + index}>
                                                     <div className={'menu-item'}>
                                                         <span>{sign.name}</span>
-                                                        <img className={'imgw20'} src={getFile64(sign, 'sign')} alt=""/>
+                                                        <img className={'imgw20'} src={getFile64(sign)} alt=""/>
                                                     </div>
                                                 </sp-menu-item>
                                             )
@@ -731,7 +735,7 @@ export const ColorPicker = () => {
                                                                     return (
                                                                         <div id={"leftMedal" + leftMedalsRowIndex + "-" + leftMedalCellIndex} className={'smallItemCell'} key={'leftMedalRow' + leftMedalCellIndex}>
                                                                             <div className={'flex'} onClick={() => deleteItemFromSelected(leftMedalsRowIndex, leftMedalCellIndex, leftMedal)}>
-                                                                                <img className={'imgw20'} src={getFile64(leftMedal, 'medal')} alt=""/>
+                                                                                <img className={'imgw20'} src={getFile64(leftMedal)} alt=""/>
                                                                             </div>
                                                                         </div>
                                                                     )
@@ -762,7 +766,7 @@ export const ColorPicker = () => {
                                                                     return (
                                                                         <div id={"grade" + gradeRowIndex + "-" + gradeCellIndex} className={'gradeItemCell'} key={'gradeMedalRow' + gradeCellIndex}>
                                                                             <div className={'flex'} onClick={() => deleteItemFromSelected(gradeRowIndex, gradeCellIndex, grade)}>
-                                                                                <img className={'imgw40'} src={getFile64(grade, 'sign')} alt=""/>
+                                                                                <img className={'imgw40'} src={getFile64(grade)} alt=""/>
                                                                             </div>
                                                                         </div>
                                                                     )
@@ -791,7 +795,7 @@ export const ColorPicker = () => {
                                                             return (
                                                                 <div id={"sign" + signRowIndex + "-" + signCellIndex} className={'itemCell'} key={'signRow' + signCellIndex}>
                                                                     <div className={'flex'} onClick={() => deleteItemFromSelected(signRowIndex, signCellIndex, sign)}>
-                                                                        <img className={'imgh30'} src={getFile64(sign,'sign')} alt=""/>
+                                                                        <img className={'imgh30'} src={getFile64(sign)} alt=""/>
                                                                     </div>
                                                                 </div>
                                                             )
@@ -825,7 +829,7 @@ export const ColorPicker = () => {
                                                 <sp-menu-item onClick={() => addItemToSelected(medal)} className={'searchFormsBtn'} key={medal.name + index}>
                                                     <div className={'menu-item'}>
                                                         <span className={rightItemName === 'medal' ? 'yellowItems' : 'redItems'}>{medal.name}</span>
-                                                        <img className={'imgw20'} src={getFile64(medal, 'medal')} alt=""/>
+                                                        <img className={'imgw20'} src={getFile64(medal)} alt=""/>
                                                     </div>
                                                 </sp-menu-item>
                                             )
@@ -846,7 +850,7 @@ export const ColorPicker = () => {
                                                                     return (
                                                                         <div id={"rightMedal" + rightMedalsRowIndex + "-" + rightMedalCellIndex} className={'smallItemCell'} key={'rightMedalRow' + rightMedalCellIndex}>
                                                                             <div className={'flex'} onClick={() => deleteItemFromSelected(rightMedalsRowIndex, rightMedalCellIndex, rightMedal)}>
-                                                                                <img className={'imgw20'} src={getFile64(rightMedal, 'medal')} alt=""/>
+                                                                                <img className={'imgw20'} src={getFile64(rightMedal)} alt=""/>
                                                                             </div>
                                                                         </div>
                                                                     )
@@ -876,7 +880,7 @@ export const ColorPicker = () => {
                                                             return (
                                                                 <div id={"medal" + medalRowIndex + "-" + medalCellIndex} className={'itemCell'} key={'medalRow' + medalCellIndex}>
                                                                     <div className={'absolute'} onClick={() => deleteItemFromSelected(medalRowIndex, medalCellIndex, medal)}>
-                                                                        <img className={'imgw30 zInd' + medalRowIndex} src={getFile64(medal, 'medal')} alt=""/>
+                                                                        <img className={'imgw30 zInd' + medalRowIndex} src={getFile64(medal)} alt=""/>
                                                                     </div>
                                                                 </div>
                                                             )

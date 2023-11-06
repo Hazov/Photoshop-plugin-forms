@@ -2,6 +2,9 @@ import {FileManager} from "./fileManager";
 import {Util} from "./util";
 import {FormCategory} from "../entities/FormCategory";
 import {Form} from "../entities/Form";
+import {ItemFilePair} from "../entities/ItemFilePair";
+import {Item} from "../entities/Item";
+import {SortService} from "./sortService";
 
 const uxp = require('uxp')
 const storage = uxp.storage;
@@ -10,10 +13,11 @@ const ITEM_NAME_SEPARATOR = '---'
 
 const fileManager = new FileManager();
 const util = new Util();
+const sortService = new SortService();
 
 export class FetchManager {
      async fetchFormCategory(folder){
-         let category = new FormCategory(null, null);
+        let category = new FormCategory(null, null);
 
         let entries = await folder.getEntries();
         let infoFile = entries.find(entry => entry.name.includes('.info'));
@@ -22,10 +26,11 @@ export class FetchManager {
             category.categoryItems = entries.filter(entry => entry.isFolder).map(folder => folder.name);
             return category;
         } else {
-            let forms = entries.filter(entry => entry.isFile).map(file => new Form(file.name, util.withoutExtensionName(file)));
+            let forms = entries.filter(sortService.isPngFile).map(file => new Form(file.name, util.withoutExtensionName(file)));
             folder = await folder.getEntry('previews');
             for(let form of forms){
                 form.file = await fileManager.readFileObj(folder, form.fileName);
+                form.file.path = form.file.path.replace('\\previews', '');
             }
             category.formItems = forms;
             return category;
@@ -39,13 +44,15 @@ export class FetchManager {
             itemSet.itemName = itemName.replace(/s+$/, '')
         }
         let entries = await itemFolder.getEntries();
+        entries = entries.filter(entry => entry.isFile && entry.name.endsWith('.png'));
         let items = [];
         for(let entry of entries){
             let item = await this.getItem(itemFolder, entry, itemSet.itemName);
             if(!itemFiles[item.itemName]){
                 itemFiles[item.itemName] = [];
             }
-            itemFiles[item.itemName].push({name: item.name, file: await fileManager.readFileObj(itemFolder, entry.name)})
+            let file = await fileManager.readFileObj(itemFolder, entry.name);
+            itemFiles[item.itemName].push(new ItemFilePair(item.name, file));
             items.push(item);
         }
         return items;
@@ -95,8 +102,7 @@ export class FetchManager {
             itemName = itemNameSplit[0];
             withoutExtensionName = withoutExtensionName.split(ITEM_NAME_SEPARATOR)[1];
         }
-
-        return {itemName: itemName, fileName: file.name, name: withoutExtensionName}
+        return new Item(itemName, file.name, withoutExtensionName);
     }
 
     async fetchFormPreviews(formFolder) {
@@ -105,7 +111,6 @@ export class FetchManager {
 
     }
 }
-
 
 
 
