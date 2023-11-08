@@ -56,6 +56,7 @@ export const ColorPicker = () => {
     let [isLoading, setIsLoading] = useState(false)
     let [loadingProgressValue, setLoadingProgressValue] = useState('0');
     let [formPreview, setFormPreview] = useState(null);
+    let [itemPreview, setItemPreview] = useState(null);
 
     init().then(ignore => {});
     async function init(){
@@ -140,12 +141,27 @@ export const ColorPicker = () => {
         return strap.file.file64;
     }
 
-    function showPreview(form){
+    function showFormPreview(form){
         setFormPreview(form);
     }
 
-    function hidePreview(){
+    function hideFormPreview(){
         setFormPreview(null);
+    }
+
+    function showItemPreview(item){
+        setItemPreview(item);
+    }
+    function hideItemPreview(){
+        setItemPreview(null);
+    }
+
+    function getItemPreviewSize(item){
+        let itemName = item.itemName;
+        if(itemName === 'plank' && itemName === 'grade'){
+            return 'imgh50';
+        }
+        return 'imgw100';
     }
     function medalsInRowSetter(count){
         medalsInRow = count;
@@ -754,7 +770,7 @@ export const ColorPicker = () => {
                                                         <sp-menu>
                                                             {filteredForms.map((form, index) => {
                                                                 return (
-                                                                    <sp-menu-item onMouseEnter={() => showPreview(form)} onMouseLeave={() => hidePreview()} onClick={() => toSignsAndMedals(form)} className={'searchFormsBtn'} key={form.name + index}>
+                                                                    <sp-menu-item onMouseEnter={() => showFormPreview(form)} onMouseLeave={() => hideFormPreview()} onClick={() => toSignsAndMedals(form)} className={'searchFormsBtn'} key={form.name + index}>
                                                                         <div className={'menu-item'}>
                                                                             <span>{form.name}</span>
                                                                             <img className={'imgw60'} src={getStrap(form)} alt=""/>
@@ -790,6 +806,15 @@ export const ColorPicker = () => {
             {(() => {if(currentForm && !isLoading){
                 return (
                     <div>
+                        {(() => {
+                            if(itemPreview){
+                                return (
+                                    <div className={'itemPreview'}>
+                                        <img className={getItemPreviewSize(itemPreview)}  src={getFile64(itemPreview)} alt=""/>
+                                    </div>
+                                )
+                            }
+                        })()}
                         <div className={'flex'}>
                             <div id="formItemView">
                                 <img className={'img100'} src={currentForm.file.file64} alt=""/>
@@ -810,10 +835,10 @@ export const ColorPicker = () => {
                                     <sp-menu>
                                         {filteredSigns.map((sign, index) => {
                                             return (
-                                                <sp-menu-item onClick={() => addItemToSelected(sign)} className={'searchFormsBtn'} key={sign.name + index}>
+                                                <sp-menu-item onMouseEnter={() => showItemPreview(sign)} onMouseLeave={() => hideItemPreview()} onClick={() => addItemToSelected(sign)} className={'searchFormsBtn'} key={sign.name + index}>
                                                     <div className={'menu-item'}>
                                                         <span>{sign.name}</span>
-                                                        <img className={'imgw20'} src={getFile64(sign)} alt=""/>
+                                                        <img  className={'imgw20'} src={getFile64(sign)} alt=""/>
                                                     </div>
                                                 </sp-menu-item>
                                             )
@@ -925,7 +950,7 @@ export const ColorPicker = () => {
                                     <sp-menu>
                                         {filteredMedals.map((medal, index) => {
                                             return (
-                                                <sp-menu-item onClick={() => addItemToSelected(medal)} className={'searchFormsBtn'} key={medal.name + index}>
+                                                <sp-menu-item onMouseEnter={() => showItemPreview(medal)} onMouseLeave={() => hideItemPreview()} onClick={() => addItemToSelected(medal)} className={'searchFormsBtn'} key={medal.name + index}>
                                                     <div className={'menu-item'}>
                                                         <span className={rightItemName === 'medal' ? 'yellowItems' : 'redItems'}>{medal.name}</span>
                                                         <img className={'imgw20'} src={getFile64(medal)} alt=""/>

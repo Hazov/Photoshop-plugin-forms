@@ -258,6 +258,21 @@ sp-menu-item{
     bottom: 30px;
 }
 
+.itemPreview{
+    z-index: 9999;
+    position: absolute;
+    right: 270px;
+    bottom: 15px;
+}
+
+.imgh50{
+    height: 50px;
+}
+
+.imgw100{
+    width: 100px;
+}
+
 .img100{
     width: 100px;
 }
