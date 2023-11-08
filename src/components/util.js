@@ -47,6 +47,9 @@ export class Util{
     withoutExtensionName(file){
          return file.name.split(/\.(?=[^.]+$)/)[0];
     }
+    getOr0(item){
+         return item ? item : 0;
+    }
 }
 
 

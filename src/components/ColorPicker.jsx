@@ -31,6 +31,8 @@ let itemFiles = [];
 let isInit = false;
 let straps = [];
 
+let itemOffsets = {};
+
 let itemNamesList = ['medal', 'plank', 'sign', 'grade', 'leftMedal', 'rightMedal'];
 
 export const ColorPicker = () => {
@@ -421,6 +423,8 @@ export const ColorPicker = () => {
              currentForm.config = await fetchManager.fetchFormConfig(currentFormFolder);
              let insertFormResult = await executor.insertImageToPhotoshop(currentForm.file.path);
              //Айтемы
+             let leftMedalLayerIds = await insertFormItemsToPhotoshop(selectedLeftMedals);
+             let rightMedalLayerIds = await insertFormItemsToPhotoshop(selectedRightMedals);
              let medalLayerIds = await insertFormItemsToPhotoshop(selectedMedals);
              let signLayerIds = await insertFormItemsToPhotoshop(selectedSigns);
              let gradeLayerIds = await insertFormItemsToPhotoshop(selectedGrade);
@@ -438,12 +442,15 @@ export const ColorPicker = () => {
                  textLayerResult = [];
              }
 
-             await executor.setLayers([ formLayer.id, ...medalLayerIds, ...signLayerIds, ...textLayerResult, ...gradeLayerIds]);
+             await executor.setLayers([ formLayer.id, ...medalLayerIds, ...signLayerIds, ...textLayerResult, ...gradeLayerIds, ...leftMedalLayerIds, ...rightMedalLayerIds]);
              let resizePercentValue = getResizeFormValue(formLayer);
              await executor.resizeImage(resizePercentValue);
          } catch (e) {
+         } finally {
+             itemOffsets = {};
              setIsLoading(false);
          }
+
 
     }
 
@@ -456,39 +463,153 @@ export const ColorPicker = () => {
     }
 
     async function insertFormItemsToPhotoshop(selectedItems){
-        try{
-            let finalItems = [];
-            let filledRowsCount = selectedItems.filter(row => row.some(item => item)).length;
+        if(selectedItems.some(row => row.some(item => item))){
             try{
+                let finalItems = [];
                 selectedItems.forEach((selectedRow, rowIdx) => {
                     let onlyFilled = selectedRow.filter(item => item);
                     onlyFilled.forEach((item, itemIdx) => {
-                        item.offset = calculateOffset(rowIdx, itemIdx, onlyFilled.length, filledRowsCount, item.itemName);
+                        item.rowIdx = rowIdx;
+                        item.itemIdx = itemIdx;
+                        item.offset = {};
+                        item.offset.vertical = 0;
+                        item.offset.horizontal = 0;
+                        item.itemsInRow = onlyFilled.length;
                         finalItems.push(item);
                     })
                 })
-            } catch (e){
+
+                //Располагаем посередине
+                finalItems = finalItems.reverse();
+                let layersInfo = await placeItems(finalItems);
+                //Двигаем на нужные позиции
+                finalItems = finalItems.reverse();
+                finalItems = applyOffsetsToItem(finalItems);
+                await alignItems(finalItems);
+                await offsetItems(finalItems);
+
+                await transformAllItems(layersInfo);
+                return layersInfo.map(info => info.layerId);
+            } catch(e){
                 console.log(e)
             }
+        }
+    }
 
+    async function alignItems(items){
+        for(let item of items){
+            await executor.setLayers([item.layer.id]);
+            await executor.moveImage(item.offset);
+        }
+    }
 
-            finalItems = finalItems.reverse();
-            let layersInfo = [];
-            for(let item of finalItems){
-                let itemLayerId = await placeItem(item);
-                layersInfo.push({item: item, layerId: itemLayerId});
+    async function offsetItems(items){
+        let formConfig = currentForm.config;
+        let offset = {};
+        offset.vertical = formConfig[items[0].itemName + 'VStartOffset'];
+        offset.horizontal = formConfig[items[0].itemName + 'HStartOffset'];
+
+        await executor.setLayers(items.map(item => item.layer.id));
+        await executor.moveImage(offset);
+    }
+
+    function applyOffsetsToItem(items){
+
+        let currentRowIdx = 0;
+        for(let item of items){
+            if(currentRowIdx < item.rowIdx){
+                itemOffsets[item.itemName + 'HBetweenOffset'] = 0;
+                currentRowIdx = item.rowIdx;
             }
-            await transformAllItems(layersInfo);
-            return layersInfo.map(info => info.layerId);
-        } catch(e){
-            console.log(e)
+            let forPlanksOffset = 0;
+            let hBetweenOffset = item.layer.bounds.width;
+            let vBetweenOffset = item.layer.bounds.height + 10;
+            let nextRowCenterOffset = itemOffsets[item.itemName + 'MaxRowWidth'] - itemOffsets[item.itemName + 'Row-' + item.rowIdx + '-Width'];
+            nextRowCenterOffset = nextRowCenterOffset / 2;
+            if(item.itemName === 'medal'){
+                hBetweenOffset = hBetweenOffset / 2;
+                vBetweenOffset = vBetweenOffset * 0.4;
+                nextRowCenterOffset = nextRowCenterOffset / 2;
+            }
+            if(item.itemName === 'plank'){
+                forPlanksOffset = itemOffsets['forPlanksOffset'];
+            }
+            itemOffsets[item.itemName + 'VBetweenOffset'] = vBetweenOffset * item.rowIdx;
+            itemOffsets[item.itemName + 'HBetweenOffset'] += hBetweenOffset + 10;
+
+            item.offset.vertical = itemOffsets[item.itemName + 'VBetweenOffset'] - forPlanksOffset;
+            item.offset.horizontal = itemOffsets[item.itemName + 'HBetweenOffset'] + nextRowCenterOffset;
+
         }
 
+        return items;
+    }
+
+    async function placeItems(items){
+        let itemName = items[0].itemName;
+        let layersInfo = [];
+        let maxRowWidth = 0;
+        for(let item of items){
+            initItemOffsets(item);
+            let rowWidth = 0;
+            let currentRowIdx = item.rowIdx;
+            if(currentRowIdx !== item.rowIdx || items.indexOf(item) === items.length - 1){
+                rowWidth = 0;
+            }
+            let itemLayerId = await placeItem(item);
+            item.layer = app.activeDocument.layers.find(layer => layer.id === itemLayerId);
+
+            item.width = item.layer.bounds.width;
+            item.height = item.layer.bounds.height;
+
+            itemOffsets[itemName + 'Row-' + item.rowIdx + '-Width'] += item.width;
+            itemOffsets[itemName + 'Row-' + item.rowIdx + '-Height'] = Math.max(itemOffsets[itemName + 'Row-' + item.rowIdx + '-Height'], item.height);
+
+            if(itemOffsets[itemName + 'MaxRowHeight'] < itemOffsets[itemName + 'Row-' + item.rowIdx + '-Height']){
+                itemOffsets[itemName + 'MaxRowHeight'] = itemOffsets[itemName + 'Row-' + item.rowIdx + '-Height'];
+            }
+
+            if(maxRowWidth < rowWidth) maxRowWidth = rowWidth;
+            layersInfo.push({item: item, layerId: itemLayerId});
+        }
+        if(itemOffsets[itemName + 'MaxRowWidth'] < maxRowWidth){
+            itemOffsets[itemName + 'MaxRowWidth'] = maxRowWidth
+        }
+        if(items[0].rowIdx !== 0){
+            let forPlanksOffset = 0;
+            let lastRowIdx = items[0].rowIdx;
+            for(let i = lastRowIdx; i > 0; i--){
+                forPlanksOffset +=  itemOffsets[itemName + 'Row-' + i + '-Height'];
+
+            }
+            itemOffsets['forPlanksOffset'] = forPlanksOffset * currentForm.config['plankScale'] / 100;
+        }
+        return layersInfo;
+    }
+
+    function initItemOffsets(item){
+        if(!itemOffsets[item.itemName + 'Row-' + item.rowIdx + '-Width']){
+            itemOffsets[item.itemName + 'Row-' + item.rowIdx + '-Width'] = 0;
+        }
+        if(!itemOffsets[item.itemName + 'Row-' + item.rowIdx + '-Height']){
+            itemOffsets[item.itemName + 'Row-' + item.rowIdx + '-Height'] = 0;
+        }
+        if(!itemOffsets[item.itemName + 'VBetweenOffset']){
+            itemOffsets[item.itemName + 'VBetweenOffset'] = 0;
+        }
+        if(!itemOffsets[item.itemName + 'HBetweenOffset']){
+            itemOffsets[item.itemName + 'HBetweenOffset'] = 0;
+        }
+        if(!itemOffsets[item.itemName + 'MaxRowHeight']){
+            itemOffsets[item.itemName + 'MaxRowHeight'] = 0;
+        }
+        if(!itemOffsets[item.itemName + 'MaxRowWidth']){
+            itemOffsets[item.itemName + 'MaxRowWidth'] = 0;
+        }
     }
 
     async function placeItem(item){
         let insertResult = await executor.insertImageToPhotoshop(getItemFile(item).path);
-        await executor.moveImage(item.offset);
         return insertResult[0].ID;
     }
     async function transformAllItems(layersInfo){
@@ -516,15 +637,6 @@ export const ColorPicker = () => {
 
     }
 
-
-    function calculateOffset(rowIdx, itemIdx, itemsCountInRow, rowsCount, itemName){
-        let offsetSetting = getOffsetSettings(itemName, itemsCountInRow, rowsCount);
-        let offset = {};
-
-        offset.vertical = offsetSetting.vStartOffset + rowIdx * offsetSetting.vBetweenOffset;
-        offset.horizontal = offsetSetting.hStartOffset + itemIdx * offsetSetting.hBetweenOffset;
-        return offset;
-    }
 
     function getTransformOptions(itemName, layer){
         let options = {};
@@ -556,19 +668,6 @@ export const ColorPicker = () => {
         return scale;
     }
 
-    function getOffsetSettings(itemName, itemsCountInRow, rowsCount){
-        let conf = currentForm.config;
-        let offsetSettings = {};
-        offsetSettings.vBetweenOffset = conf ? conf[itemName + 'VBetweenOffset']: 200;
-        offsetSettings.hBetweenOffset = conf ? conf[itemName + 'HBetweenOffset']: 150;
-        offsetSettings.hStartOffset = (conf ? conf[itemName + 'HStartOffset'] : -675) - (offsetSettings.hBetweenOffset / 2 * itemsCountInRow);
-        let vRowOffset = 0;
-        if(itemName === 'plank'){
-            vRowOffset = offsetSettings.vBetweenOffset * (rowsCount - 1);
-        }
-        offsetSettings.vStartOffset = (conf ? conf[itemName + 'VStartOffset'] : 150) - vRowOffset;
-        return offsetSettings;
-    }
 
 
     async function execute(pluginFunc){
