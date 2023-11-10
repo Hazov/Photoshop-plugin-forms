@@ -17,14 +17,25 @@ const sortService = new SortService();
 
 export class FetchManager {
      async fetchFormCategory(folder){
-        let category = new FormCategory(null, null);
+        let category = new FormCategory(null, []);
 
         let entries = await folder.getEntries();
         let infoFile = entries.find(entry => entry.name.includes('.info'));
         if (infoFile) {
             category.title = infoFile.name.split('.info')[0];
-            category.categoryItems = entries.filter(entry => entry.isFolder).map(folder => folder.name);
-            return category;
+            let categoryNames = entries.filter(entry => entry.isFolder).map(folder => folder.name);
+            let files = entries.filter(entry => entry.isFile)
+            for(let categoryName of categoryNames){
+                let categoryItem = {};
+                categoryItem.name = categoryName;
+                let foundFile = files.find(file => util.withoutExtensionName(file) === categoryName);
+                let uxpFile;
+                if(foundFile){
+                    uxpFile = await fileManager.readFileObj(folder, foundFile.name);
+                    categoryItem.file = uxpFile;
+                }
+                category.categoryItems.push(categoryItem);
+            }
         } else {
             let forms = entries.filter(sortService.isPngFile).map(file => new Form(file.name, util.withoutExtensionName(file)));
             folder = await folder.getEntry('previews');
@@ -33,8 +44,8 @@ export class FetchManager {
                 form.file.path = form.file.path.replace('\\previews', '');
             }
             category.formItems = forms;
-            return category;
         }
+         return category;
     }
 
      async fetchItems(itemSet, itemFiles){

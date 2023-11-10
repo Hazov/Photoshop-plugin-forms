@@ -766,9 +766,12 @@ export const ColorPicker = () => {
                                             <div>
                                                 <h2>{formCategory.title}</h2>
                                                 <sp-radio-group label="Medium" name='${formCategory.title}' >
-                                                    {formCategory.categoryItems.map((itemName, index) => {
+                                                    {formCategory.categoryItems.map((category, index) => {
                                                         return (
-                                                            <sp-radio onInput={() => nextCategory(itemName)} value="${itemName + index}" size="m" key={itemName + index}>{itemName}</sp-radio>
+                                                            <div>
+                                                                <sp-radio onInput={() => nextCategory(category.name)} value="${itemName + index}" size="m" key={category.name + index}> {category.name} </sp-radio>
+                                                                <img onClick={() => nextCategory(category.name)} className={'imgw60'} src={category.file?.file64} alt=""/>
+                                                            </div>
                                                         )
                                                     })}
                                                 </sp-radio-group>
