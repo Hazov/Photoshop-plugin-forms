@@ -13,6 +13,10 @@ export class PhotoshopExecutor {
         let insertDescriptor = [
             {
                 _obj: "placeEvent",
+                to: {
+                    _obj: 'layer',
+                    name: 'dfg'
+                },
                 null: {
                     _path: await fileManager.tokenify(filePath),
                     _kind: "local"

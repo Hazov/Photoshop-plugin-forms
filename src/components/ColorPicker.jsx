@@ -57,6 +57,7 @@ export const ColorPicker = () => {
     let [loadingProgressValue, setLoadingProgressValue] = useState('0');
     let [formPreview, setFormPreview] = useState(null);
     let [itemPreview, setItemPreview] = useState(null);
+    let [isFormInserted, setIsFormInserted] = useState(null);
 
     init().then(ignore => {});
     async function init(){
@@ -288,7 +289,7 @@ export const ColorPicker = () => {
         currentFormFolder.pop();
         fetchManager.fetchFormCategory(await fileManager.getFolderByPath(currentFormFolder)).then(resolve => setFormCategory(resolve));
     }
-    async function nextCategory(title, item) {
+    async function nextCategory(item) {
         currentFormFolder.push(item);
         let formFolder = await fileManager.getFolderByPath(currentFormFolder);
         let resolve = await fetchManager.fetchFormCategory(formFolder)
@@ -360,15 +361,11 @@ export const ColorPicker = () => {
     }
 
     async function toSignsAndMedals(form){
-                                                                            setIsLoading(true);
-                                                                            setLoadingProgressValue('0.6')
         form.config = await fetchManager.fetchFormConfig(currentFormFolder);
-                                                                            setLoadingProgressValue('0.95')
         if(form.config && form.config['rightItemsDefault'] === 'plank'){
             switchRightItems();
         }
         setCurrentForm(form);
-                                                                            setIsLoading(false);
     }
 
     function getActuallyItemName(item){
@@ -434,40 +431,62 @@ export const ColorPicker = () => {
         setCurrentForm(null);
     }
 
+    function editPrevForm(){
+        setIsFormInserted(false);
+    }
+
+    async function toNewForm(){
+        setIsFormInserted(false)
+        setCurrentForm(null);
+        currentFormFolder = ['allFiles'];
+        nextCategory('forms')
+        selectedMedals.flatMap(row => row).filter(item => item).forEach(item => medals.push(item));
+        selectedLeftMedals.flatMap(row => row).filter(item => item).forEach(item => medals.push(item));
+        selectedRightMedals.flatMap(row => row).filter(item => item).forEach(item => medals.push(item));
+        setMedals(medals);
+        selectedGrade.flatMap(row => row).filter(item => item).forEach(item => signs.push(item));
+        selectedSigns.flatMap(row => row).filter(item => item).forEach(item => signs.push(item));
+
+        for (let itemName of itemNamesList) {
+            await updateSelectedCells(await getItemSet(itemName));
+        }
+    }
+
     async function insertFormToPhotoshop() {
-         try{
-             currentForm.config = await fetchManager.fetchFormConfig(currentFormFolder);
-             let insertFormResult = await executor.insertImageToPhotoshop(currentForm.file.path);
-             //Айтемы
-             let leftMedalLayerIds = await insertFormItemsToPhotoshop(selectedLeftMedals);
-             let rightMedalLayerIds = await insertFormItemsToPhotoshop(selectedRightMedals);
-             let medalLayerIds = await insertFormItemsToPhotoshop(selectedMedals);
-             let signLayerIds = await insertFormItemsToPhotoshop(selectedSigns);
-             let gradeLayerIds = await insertFormItemsToPhotoshop(selectedGrade);
+        if(!isLoading){
+            try{
+                setIsLoading(true)
+                currentForm.config = await fetchManager.fetchFormConfig(currentFormFolder);
+                let insertFormResult = await executor.insertImageToPhotoshop(currentForm.file.path);
+                let textLayerResult;
+                let formLayer = app.activeDocument.layers.find(layer => layer.id === insertFormResult[0].ID);
+                //Текст
+                if(initials){
+                    textLayerResult =  await executor.createTextLayer(initials);
+                    let initialsLayer = app.activeDocument.layers.find(layer => layer.id === textLayerResult[0].layerID)
+                    textLayerResult = [textLayerResult[0].layerID];
+                    await executor.alignCenterLayer();
+                    await executor.transformLayer(getTransformOptions('initials', initialsLayer))
+                } else {
+                    textLayerResult = [];
+                }
+                //Айтемы
+                let leftMedalLayerIds = await insertFormItemsToPhotoshop(selectedLeftMedals);
+                let rightMedalLayerIds = await insertFormItemsToPhotoshop(selectedRightMedals);
+                let medalLayerIds = await insertFormItemsToPhotoshop(selectedMedals);
+                let signLayerIds = await insertFormItemsToPhotoshop(selectedSigns);
+                let gradeLayerIds = await insertFormItemsToPhotoshop(selectedGrade);
 
-             let textLayerResult;
-             let formLayer = app.activeDocument.layers.find(layer => layer.id === insertFormResult[0].ID);
-             //Текст
-             if(initials){
-                 textLayerResult =  await executor.createTextLayer(initials);
-                 let initialsLayer = app.activeDocument.layers.find(layer => layer.id === textLayerResult[0].layerID)
-                 textLayerResult = [textLayerResult[0].layerID];
-                 await executor.alignCenterLayer();
-                 await executor.transformLayer(getTransformOptions('initials', initialsLayer))
-             } else {
-                 textLayerResult = [];
-             }
-
-             await executor.setLayers([ formLayer.id, ...medalLayerIds, ...signLayerIds, ...textLayerResult, ...gradeLayerIds, ...leftMedalLayerIds, ...rightMedalLayerIds]);
-             let resizePercentValue = getResizeFormValue(formLayer);
-             await executor.resizeImage(resizePercentValue);
-         } catch (e) {
-         } finally {
-             itemOffsets = {};
-             setIsLoading(false);
-         }
-
-
+                await executor.setLayers([ formLayer.id, ...medalLayerIds, ...signLayerIds, ...textLayerResult, ...gradeLayerIds, ...leftMedalLayerIds, ...rightMedalLayerIds]);
+                let resizePercentValue = getResizeFormValue(formLayer);
+                await executor.resizeImage(resizePercentValue);
+            } catch (e) {
+            } finally {
+                itemOffsets = {};
+                setIsLoading(false);
+                setIsFormInserted(true);
+            }
+        }
     }
 
     function getResizeFormValue(formLayer){
@@ -510,6 +529,7 @@ export const ColorPicker = () => {
                 console.log(e)
             }
         }
+        return [];
     }
 
     async function alignItems(items){
@@ -591,15 +611,14 @@ export const ColorPicker = () => {
         if(itemOffsets[itemName + 'MaxRowWidth'] < maxRowWidth){
             itemOffsets[itemName + 'MaxRowWidth'] = maxRowWidth
         }
+        let forPlanksOffset = 0;
         if(items[0].rowIdx !== 0){
-            let forPlanksOffset = 0;
             let lastRowIdx = items[0].rowIdx;
             for(let i = lastRowIdx; i > 0; i--){
                 forPlanksOffset +=  itemOffsets[itemName + 'Row-' + i + '-Height'];
-
             }
-            itemOffsets['forPlanksOffset'] = forPlanksOffset * currentForm.config['plankScale'] / 100;
         }
+        itemOffsets['forPlanksOffset'] = forPlanksOffset * currentForm.config['plankScale'] / 100;
         return layersInfo;
     }
 
@@ -749,7 +768,7 @@ export const ColorPicker = () => {
                                                 <sp-radio-group label="Medium" name='${formCategory.title}' >
                                                     {formCategory.categoryItems.map((itemName, index) => {
                                                         return (
-                                                            <sp-radio onInput={() => nextCategory(formCategory.title, itemName)} value="${itemName + index}" size="m" key={itemName + index}>{itemName}</sp-radio>
+                                                            <sp-radio onInput={() => nextCategory(itemName)} value="${itemName + index}" size="m" key={itemName + index}>{itemName}</sp-radio>
                                                         )
                                                     })}
                                                 </sp-radio-group>
@@ -803,7 +822,7 @@ export const ColorPicker = () => {
 
 
 
-            {(() => {if(currentForm && !isLoading){
+            {(() => {if(currentForm && !isLoading && !isFormInserted){
                 return (
                     <div>
                         {(() => {
@@ -819,9 +838,13 @@ export const ColorPicker = () => {
                             <div id="formItemView">
                                 <img className={'img100'} src={currentForm.file.file64} alt=""/>
                             </div>
-                            <div className={'width70'} id="initials">
-                                <sp-textfield value={initials} onInput={setInitialsValue} placeholder="Фамилия И.О." id ="initialInput" type="input"></sp-textfield>
-                            </div>
+                            {(() => {if(currentForm.config['rightItemsDefault'] === 'plank'){
+                                return (
+                                    <div className={'width70'} id="initials">
+                                        <sp-textfield value={initials} onInput={setInitialsValue} placeholder="Фамилия И.О." id ="initialInput" type="input"></sp-textfield>
+                                    </div>
+                                )
+                            }})()}
                         </div>
                         <div id="flex-box">
                             {/*СПИСОК ЗНАЧКОВ*/}
@@ -1022,15 +1045,32 @@ export const ColorPicker = () => {
                                 </div>
                             </div>
                         </div>
-                        <div id={'controlButtons'}>
-                            <button onClick={() => backToChooseCategories()}>Назад</button>
-                            <sp-button onClick={() => insertFormToPhotoshop()}>Подставить форму</sp-button>
+                        {(() => {
+                            if(!isLoading) {
+                                return (
+                                    <div id={'controlButtons'}>
+                                        <button onClick={() => backToChooseCategories()}>Назад</button>
+                                        <sp-button onClick={() => insertFormToPhotoshop()}>Подставить форму</sp-button>
+                                    </div>
+                                )
+                            }
+                        })()}
+                    </div>
+                )
+            }})()}
+            {(() => {if(isFormInserted && !isLoading){
+                return (
+                    <div id={'afterFormInsertMenu'}>
+                        <div>
+                            <button onClick={() => insertFormToPhotoshop()}>Подставить предыдущую</button>
+                            <button onClick={() => editPrevForm()}>Редактировать предыдущую</button>
+                        </div>
+                        <div>
+                            <sp-button onClick={() => toNewForm()}>Новая форма</sp-button>
                         </div>
                     </div>
                 )
-
             }})()}
-
         </div>
         );
     }
