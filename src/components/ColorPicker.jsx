@@ -478,7 +478,7 @@ export const ColorPicker = () => {
                     let initialsLayer = app.activeDocument.layers.find(layer => layer.id === textLayerResult[0].layerID)
                     textLayerResult = [textLayerResult[0].layerID];
                     await photoshopService.alignCenterLayer();
-                    await photoshopService.transformLayer(getTransformOptions('initials', initialsLayer))
+                    await photoshopService.transformLayer(getItemTransformOptions('initials', initialsLayer))
                 } else {
                     textLayerResult = [];
                 }
@@ -686,7 +686,7 @@ export const ColorPicker = () => {
     }
 
 
-    function getTransformOptions(itemName, layer){
+    function getItemTransformOptions(itemName, layer){
         let options = {};
         if(currentForm.config){
             let config = JSON.parse(JSON.stringify(currentForm.config));
