@@ -1,10 +1,10 @@
-import {FileManager} from "./fileManager";
+import {FileService} from "./fileService";
 
 const photoshop = require('photoshop');
 const app = photoshop.app;
-const fileManager = new FileManager();
+const fileService = new FileService();
 
-export class PhotoshopExecutor {
+export class PhotoshopService {
     async execute(pluginFunc) {
         return await photoshop.core.executeAsModal(pluginFunc);
     }
@@ -18,7 +18,7 @@ export class PhotoshopExecutor {
                     name: 'dfg'
                 },
                 null: {
-                    _path: await fileManager.tokenify(filePath),
+                    _path: await fileService.tokenify(filePath),
                     _kind: "local"
                 },
                 offset: {

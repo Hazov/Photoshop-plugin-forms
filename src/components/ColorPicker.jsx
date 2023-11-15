@@ -2,21 +2,21 @@ import React, {useState} from "react";
 
 
 import "./ColorPicker.css"
-import {FetchManager} from "./fetchManager";
-import {Util} from "./util";
-import {FileManager} from "./fileManager";
-import {SortService} from "./sortService";
-import {PhotoshopExecutor} from "./photoshopExecutor";
+import {FetchService} from "../services/fetchService";
+import {UtilService} from "../services/utilService";
+import {FileService} from "../services/fileService";
+import {SortService} from "../services/sortService";
+import {PhotoshopService} from "../services/PhotoshopService";
 
 
 const photoshop = require('photoshop');
 const app = photoshop.app;
 
-const fetchManager = new FetchManager();
-const util = new Util();
-const fileManager = new FileManager();
+const fetchService = new FetchService();
+const utilService = new UtilService();
+const fileService = new FileService();
 const sortService = new SortService();
-const executor = new PhotoshopExecutor();
+const photoshopService = new PhotoshopService();
 
 const DEFAULT_MEDAL_ITEM_NAME = 'medal'
 const DEFAULT_PLANKS_ITEM_NAME = 'plank'
@@ -64,22 +64,22 @@ export const ColorPicker = () => {
         if(!isInit) {
             isInit = true;
             //Загрузка начальной категории
-            fetchManager.fetchFormCategory(await fileManager.getFolderByPath(currentFormFolder)).then(resolve => setFormCategory(resolve));
+            fetchService.fetchFormCategory(await fileService.getFolderByPath(currentFormFolder)).then(resolve => setFormCategory(resolve));
             //Загрузка ячеек для выбора
             for (let itemName of itemNamesList) {
                 await updateSelectedCells(await getItemSet(itemName));
             }
             //Загрузка всех погон
-            straps = await fetchManager.fetchStraps();
+            straps = await fetchService.fetchStraps();
             //Загрузка всех медалей
-            let fetchResolve = await fetchManager.fetchItems(await getItemSet(DEFAULT_MEDAL_ITEM_NAME, true), itemFiles)
+            let fetchResolve = await fetchService.fetchItems(await getItemSet(DEFAULT_MEDAL_ITEM_NAME, true), itemFiles)
             setMedals(fetchResolve);
             setFilteredMedals(fetchResolve)
             //Загрузка всех планок
-            fetchResolve = await fetchManager.fetchItems(await getItemSet(DEFAULT_PLANKS_ITEM_NAME, true), itemFiles)
+            fetchResolve = await fetchService.fetchItems(await getItemSet(DEFAULT_PLANKS_ITEM_NAME, true), itemFiles)
             setPlanks(fetchResolve);
             //Загрузка всех значков
-            fetchResolve = await fetchManager.fetchItems(await getItemSet(DEFAULT_SIGNS_ITEM_NAME), itemFiles)
+            fetchResolve = await fetchService.fetchItems(await getItemSet(DEFAULT_SIGNS_ITEM_NAME), itemFiles)
             setSigns(fetchResolve);
             setFilteredSigns(fetchResolve)
         }
@@ -116,7 +116,7 @@ export const ColorPicker = () => {
             rowsArray.push(cellsArray);
         }
         itemSet.selectedSetter(rowsArray);
-        let groupedSelectedItems = util.groupBy(allSelectedItems, 'itemName');
+        let groupedSelectedItems = utilService.groupBy(allSelectedItems, 'itemName');
         for (let group of groupedSelectedItems) {
             let itemSet = await getItemSet(group[0].itemName);
             group.forEach(item => itemSet.allItems.push(item));
@@ -191,7 +191,7 @@ export const ColorPicker = () => {
                 itemSet.allItemsSetter = setSigns;
                 itemSet.filteredItems = filteredSigns;
                 itemSet.filteredSetter = setFilteredSigns;
-                itemSet.itemFolder = await fetchManager.getSignsFolder();
+                itemSet.itemFolder = await fetchService.getSignsFolder();
                 itemSet.itemSearchInput = 'signsSearchInput'
                 break;
             }
@@ -208,7 +208,7 @@ export const ColorPicker = () => {
                 itemSet.allItemsSetter = setMedals;
                 itemSet.filteredItems = filteredMedals;
                 itemSet.filteredSetter = setFilteredMedals;
-                itemSet.itemFolder = await fetchManager.getMedalsFolder(rightName);
+                itemSet.itemFolder = await fetchService.getMedalsFolder(rightName);
                 itemSet.itemSearchInput = 'medalsSearchInput'
                 break;
             }
@@ -225,7 +225,7 @@ export const ColorPicker = () => {
                 itemSet.allItemsSetter = setPlanks;
                 itemSet.filteredItems = filteredMedals;
                 itemSet.filteredSetter = setFilteredMedals;
-                itemSet.itemFolder = await fetchManager.getMedalsFolder(rightName);
+                itemSet.itemFolder = await fetchService.getMedalsFolder(rightName);
                 itemSet.itemSearchInput = 'medalsSearchInput'
                 break;
             }
@@ -242,7 +242,7 @@ export const ColorPicker = () => {
                 itemSet.allItemsSetter = setMedals;
                 itemSet.filteredItems = filteredMedals;
                 itemSet.filteredSetter = setFilteredMedals;
-                itemSet.itemFolder = await fetchManager.getMedalsFolder('medal');
+                itemSet.itemFolder = await fetchService.getMedalsFolder('medal');
                 itemSet.itemSearchInput = 'medalsSearchInput'
                 break;
             }
@@ -259,7 +259,7 @@ export const ColorPicker = () => {
                 itemSet.allItemsSetter = setMedals;
                 itemSet.filteredItems = filteredMedals;
                 itemSet.filteredSetter = setFilteredMedals;
-                itemSet.itemFolder = await fetchManager.getMedalsFolder('medal');
+                itemSet.itemFolder = await fetchService.getMedalsFolder('medal');
                 itemSet.itemSearchInput = 'medalsSearchInput'
                 break;
             }
@@ -276,7 +276,7 @@ export const ColorPicker = () => {
                 itemSet.allItemsSetter = setSigns;
                 itemSet.filteredItems = filteredSigns;
                 itemSet.filteredSetter = setFilteredSigns;
-                itemSet.itemFolder = await fetchManager.getSignsFolder();
+                itemSet.itemFolder = await fetchService.getSignsFolder();
                 itemSet.itemSearchInput = 'signsSearchInput'
                 break;
             }
@@ -287,12 +287,12 @@ export const ColorPicker = () => {
 
     async function prevCategory(){
         currentFormFolder.pop();
-        fetchManager.fetchFormCategory(await fileManager.getFolderByPath(currentFormFolder)).then(resolve => setFormCategory(resolve));
+        fetchService.fetchFormCategory(await fileService.getFolderByPath(currentFormFolder)).then(resolve => setFormCategory(resolve));
     }
     async function nextCategory(item) {
         currentFormFolder.push(item);
-        let formFolder = await fileManager.getFolderByPath(currentFormFolder);
-        let resolve = await fetchManager.fetchFormCategory(formFolder)
+        let formFolder = await fileService.getFolderByPath(currentFormFolder);
+        let resolve = await fetchService.fetchFormCategory(formFolder)
         setFormCategory(resolve);
         //Если категория - это список форм
         if (resolve.formItems && resolve.formItems.length) {
@@ -361,7 +361,7 @@ export const ColorPicker = () => {
     }
 
     async function toSignsAndMedals(form){
-        form.config = await fetchManager.fetchFormConfig(currentFormFolder);
+        form.config = await fetchService.fetchFormConfig(currentFormFolder);
         if(form.config){
             if(form.config['rightItemsDefault'] === 'plank'){
                 switchRightItems('medal');
@@ -393,11 +393,11 @@ export const ColorPicker = () => {
         newSelectedItems[coordCell.row][coordCell.cell] = item;
         itemSet.selectedSetter(newSelectedItems);
 
-        let inAllItemIndex = util.indexOf(itemSet.allItems, item);
+        let inAllItemIndex = utilService.indexOf(itemSet.allItems, item);
         let allItemsWithoutItem = itemSet.allItems.filter((item, index) => index !== inAllItemIndex);
         itemSet.allItemsSetter(allItemsWithoutItem);
 
-        let inFilteredItemIndex = util.indexOf(itemSet.filteredItems, item);
+        let inFilteredItemIndex = utilService.indexOf(itemSet.filteredItems, item);
         let filteredItemsWithoutItem = itemSet.filteredItems.filter((item, index) => index !== inFilteredItemIndex);
         itemSet.filteredSetter(filteredItemsWithoutItem);
 
@@ -466,19 +466,19 @@ export const ColorPicker = () => {
         if(!isLoading){
             try{
                 setIsLoading(true)
-                currentForm.config = await fetchManager.fetchFormConfig(currentFormFolder);
-                let insertFormResult = await executor.insertImageToPhotoshop(currentForm.file.path);
+                currentForm.config = await fetchService.fetchFormConfig(currentFormFolder);
+                let insertFormResult = await photoshopService.insertImageToPhotoshop(currentForm.file.path);
                 let formLayer = app.activeDocument.layers.find(layer => layer.id === insertFormResult[0].ID);
-                await executor.alignCenterLayer();
+                await photoshopService.alignCenterLayer();
 
                 //Текст
                 let textLayerResult;
                 if(initials){
-                    textLayerResult =  await executor.createTextLayer(initials);
+                    textLayerResult =  await photoshopService.createTextLayer(initials);
                     let initialsLayer = app.activeDocument.layers.find(layer => layer.id === textLayerResult[0].layerID)
                     textLayerResult = [textLayerResult[0].layerID];
-                    await executor.alignCenterLayer();
-                    await executor.transformLayer(getTransformOptions('initials', initialsLayer))
+                    await photoshopService.alignCenterLayer();
+                    await photoshopService.transformLayer(getTransformOptions('initials', initialsLayer))
                 } else {
                     textLayerResult = [];
                 }
@@ -489,9 +489,9 @@ export const ColorPicker = () => {
                 let signLayerIds = await insertFormItemsToPhotoshop(selectedSigns);
                 let gradeLayerIds = await insertFormItemsToPhotoshop(selectedGrade);
 
-                await executor.setLayers([ formLayer.id, ...medalLayerIds, ...signLayerIds, ...textLayerResult, ...gradeLayerIds, ...leftMedalLayerIds, ...rightMedalLayerIds]);
+                await photoshopService.setLayers([ formLayer.id, ...medalLayerIds, ...signLayerIds, ...textLayerResult, ...gradeLayerIds, ...leftMedalLayerIds, ...rightMedalLayerIds]);
                 let resizePercentValue = getResizeFormValue(formLayer);
-                await executor.resizeImage(resizePercentValue);
+                await photoshopService.resizeImage(resizePercentValue);
             } catch (e) {
             } finally {
                 itemOffsets = {};
@@ -546,8 +546,8 @@ export const ColorPicker = () => {
 
     async function alignItems(items){
         for(let item of items){
-            await executor.setLayers([item.layer.id]);
-            await executor.moveImage(item.offset);
+            await photoshopService.setLayers([item.layer.id]);
+            await photoshopService.moveImage(item.offset);
         }
     }
 
@@ -557,8 +557,8 @@ export const ColorPicker = () => {
         offset.vertical = formConfig[items[0].itemName + 'VStartOffset'];
         offset.horizontal = formConfig[items[0].itemName + 'HStartOffset'];
 
-        await executor.setLayers(items.map(item => item.layer.id));
-        await executor.moveImage(offset);
+        await photoshopService.setLayers(items.map(item => item.layer.id));
+        await photoshopService.moveImage(offset);
     }
 
     function applyOffsetsToItem(items){
@@ -606,7 +606,7 @@ export const ColorPicker = () => {
             }
             let itemLayerId = await placeItem(item);
             item.layer = app.activeDocument.layers.find(layer => layer.id === itemLayerId);
-            await executor.alignCenterLayer();
+            await photoshopService.alignCenterLayer();
 
             item.width = item.layer.bounds.width;
             item.height = item.layer.bounds.height;
@@ -657,7 +657,7 @@ export const ColorPicker = () => {
     }
 
     async function placeItem(item){
-        let insertResult = await executor.insertImageToPhotoshop(getItemFile(item).path);
+        let insertResult = await photoshopService.insertImageToPhotoshop(getItemFile(item).path);
         return insertResult[0].ID;
     }
     async function transformAllItems(layersInfo){
@@ -673,10 +673,10 @@ export const ColorPicker = () => {
 
             for(let itemName of itemNameLayersMap.keys()){
                 let layerIds = itemNameLayersMap.get(itemName);
-                let options = getTransformOptions(itemName)
+                let options = getItemTransformOptions(itemName)
                 if(options){
-                    await executor.setLayers(layerIds);
-                    await executor.transformLayer(options);
+                    await photoshopService.setLayers(layerIds);
+                    await photoshopService.transformLayer(options);
                 }
             }
         } catch (e){
@@ -711,8 +711,14 @@ export const ColorPicker = () => {
 
     function getScaleByPocket(pocketSize, initialsLayer){
         let scale = {};
-        scale.width = (pocketSize.width / initialsLayer.bounds.width) * 100;
-        scale.height = (pocketSize.height / initialsLayer.bounds.height) * 100;
+        let commonPercent = (pocketSize.height / initialsLayer.bounds.height) * 100;
+        let percentByWidth = (pocketSize.width / initialsLayer.bounds.width) * 100;
+        let afterTransformWidth = initialsLayer.bounds.width + (initialsLayer.bounds.width / commonPercent);
+        if(pocketSize.width / afterTransformWidth > 0.7){
+            percentByWidth = commonPercent;
+        }
+        scale.height = commonPercent;
+        scale.width = percentByWidth;
         return scale;
     }
 

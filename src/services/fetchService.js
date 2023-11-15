@@ -1,5 +1,5 @@
-import {FileManager} from "./fileManager";
-import {Util} from "./util";
+import {FileService} from "./fileService";
+import {UtilService} from "./utilService";
 import {FormCategory} from "../entities/FormCategory";
 import {Form} from "../entities/Form";
 import {ItemFilePair} from "../entities/ItemFilePair";
@@ -11,11 +11,11 @@ const storage = uxp.storage;
 const formats = storage.formats
 const ITEM_NAME_SEPARATOR = '---'
 
-const fileManager = new FileManager();
-const util = new Util();
+const fileService = new FileService();
+const utilService = new UtilService();
 const sortService = new SortService();
 
-export class FetchManager {
+export class FetchService {
      async fetchFormCategory(folder){
         let category = new FormCategory(null, []);
 
@@ -28,19 +28,19 @@ export class FetchManager {
             for(let categoryName of categoryNames){
                 let categoryItem = {};
                 categoryItem.name = categoryName;
-                let foundFile = files.find(file => util.withoutExtensionName(file) === categoryName);
+                let foundFile = files.find(file => utilService.withoutExtensionName(file) === categoryName);
                 let uxpFile;
                 if(foundFile){
-                    uxpFile = await fileManager.readFileObj(folder, foundFile.name);
+                    uxpFile = await fileService.readFileObj(folder, foundFile.name);
                     categoryItem.file = uxpFile;
                 }
                 category.categoryItems.push(categoryItem);
             }
         } else {
-            let forms = entries.filter(sortService.isPngFile).map(file => new Form(file.name, util.withoutExtensionName(file)));
+            let forms = entries.filter(sortService.isPngFile).map(file => new Form(file.name, utilService.withoutExtensionName(file)));
             folder = await folder.getEntry('previews');
             for(let form of forms){
-                form.file = await fileManager.readFileObj(folder, form.fileName);
+                form.file = await fileService.readFileObj(folder, form.fileName);
                 form.file.path = form.file.path.replace('\\previews', '');
             }
             category.formItems = forms;
@@ -62,7 +62,7 @@ export class FetchManager {
             if(!itemFiles[item.itemName]){
                 itemFiles[item.itemName] = [];
             }
-            let file = await fileManager.readFileObj(itemFolder, entry.name);
+            let file = await fileService.readFileObj(itemFolder, entry.name);
             itemFiles[item.itemName].push(new ItemFilePair(item.name, file));
             items.push(item);
         }
@@ -71,11 +71,11 @@ export class FetchManager {
 
     async fetchStraps(){
          let straps = [];
-         let strapsFolder = await fileManager.getFolderByPath('allFiles/straps');
+         let strapsFolder = await fileService.getFolderByPath('allFiles/straps');
          for(let entry of await strapsFolder.getEntries()){
              let strap = {};
-             strap.file = await fileManager.readFileObj(strapsFolder, entry.name);
-             strap.name = util.withoutExtensionName(strap.file);
+             strap.file = await fileService.readFileObj(strapsFolder, entry.name);
+             strap.name = utilService.withoutExtensionName(strap.file);
              straps.push(strap);
          }
          return straps;
@@ -86,22 +86,22 @@ export class FetchManager {
             rightItemName = rightItemName.replace(/s+$/, '')
         }
         let medalsPath = 'allFiles/' + rightItemName + 's';
-        return await fileManager.getFolderByPath(medalsPath);
+        return await fileService.getFolderByPath(medalsPath);
     }
 
      async getSignsFolder(){
         let signsPath = 'allFiles/signs';
-        return await fileManager.getFolderByPath(signsPath);
+        return await fileService.getFolderByPath(signsPath);
     }
      async fetchFormConfig(folderPath){
-        let formFolder = await fileManager.getFolderByPath(folderPath);
+        let formFolder = await fileService.getFolderByPath(folderPath);
         let entries = await formFolder.getEntries();
         let configFile = entries.find(entry => entry.name.includes('.config'));
         if (configFile) {
             let json = await configFile.read({formats: formats.utf8});
             if(json){
                 let config = JSON.parse(json);
-                config = util.for300dpi(config);
+                config = utilService.for300dpi(config);
                 return config;
             }
         }
@@ -109,7 +109,7 @@ export class FetchManager {
     }
      async getItem(folder, file, itemName){
         let fileName = file.name;
-        let withoutExtensionName = util.withoutExtensionName(file);
+        let withoutExtensionName = utilService.withoutExtensionName(file);
         let itemNameSplit = fileName.split(ITEM_NAME_SEPARATOR);
         if(itemNameSplit.length > 1) {
             itemName = itemNameSplit[0];

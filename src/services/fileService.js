@@ -1,12 +1,12 @@
-import {Util} from "./util";
+import {UtilService} from "./utilService";
 import {UxpFile} from "../entities/UxpFile";
 
 const uxp = require('uxp');
 const storage = uxp.storage;
 const formats = storage.formats
 
-const util = new Util();
-export class FileManager {
+const util = new UtilService();
+export class FileService {
      async getFolderByPath(path){
         let asArrayPath;
         if(path.constructor === Array){

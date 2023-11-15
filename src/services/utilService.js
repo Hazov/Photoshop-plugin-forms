@@ -1,7 +1,7 @@
 const photoshop = require('photoshop');
 const app = photoshop.app;
 
-export class Util{
+export class UtilService {
      arrayBufferToBase64(buffer){
         let binary = '';
         let bytes = new Uint8Array(buffer);
