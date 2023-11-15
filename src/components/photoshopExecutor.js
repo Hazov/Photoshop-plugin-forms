@@ -36,7 +36,7 @@ export class PhotoshopExecutor {
                     dialogOptions: "dontDisplay"
                 }
             }
-        ]
+        ];
         return await this.execute(() => photoshop.action.batchPlay(insertDescriptor, {}));
     }
 
@@ -218,7 +218,7 @@ export class PhotoshopExecutor {
     }
 
     async deselectAll(){
-        this.selectAll('none');
+        await this.selectAll('none');
     }
 
     async alignLayer(direction){
@@ -362,9 +362,9 @@ export class PhotoshopExecutor {
                                 textStyle: {
                                     _obj: "textStyle",
                                     styleSheetHasParent: true,
-                                    fontPostScriptName: "MyriadPro-Regular",
-                                    fontName: "Myriad Pro",
-                                    fontStyleName: "Regular",
+                                    fontPostScriptName: "Arial-BoldMT",
+                                    fontName: "Arial",
+                                    fontStyleName: "Bold",
                                     fontScript: 0,
                                     fontTechnology: 0,
                                     fontAvailable: true,

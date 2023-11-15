@@ -1,4 +1,5 @@
-const uxp = require('uxp');
+const photoshop = require('photoshop');
+const app = photoshop.app;
 
 export class Util{
      arrayBufferToBase64(buffer){
@@ -49,6 +50,19 @@ export class Util{
     }
     getOr0(item){
          return item ? item : 0;
+    }
+
+    for300dpi(config){
+         for(let confItem in config){
+             if(!confItem.includes('Angle')){
+                 if(typeof config[confItem] === 'number'){
+                     config[confItem] = config[confItem] / 300 * app.activeDocument.resolution;
+                 } else if(typeof config[confItem] !== 'string') {
+                     config[confItem] = this.for300dpi(config[confItem]);
+                 }
+             }
+         }
+         return config;
     }
 }
 

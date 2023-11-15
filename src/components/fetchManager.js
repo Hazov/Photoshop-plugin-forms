@@ -100,7 +100,9 @@ export class FetchManager {
         if (configFile) {
             let json = await configFile.read({formats: formats.utf8});
             if(json){
-                return JSON.parse(json);
+                let config = JSON.parse(json);
+                config = util.for300dpi(config);
+                return config;
             }
         }
         return null;
@@ -114,12 +116,6 @@ export class FetchManager {
             withoutExtensionName = withoutExtensionName.split(ITEM_NAME_SEPARATOR)[1];
         }
         return new Item(itemName, file.name, withoutExtensionName);
-    }
-
-    async fetchFormPreviews(formFolder) {
-        formFolder.push('previews');
-        return await fileManager.getAllFilesFromFolder(formFolder);
-
     }
 }
 

@@ -265,6 +265,27 @@ sp-menu-item{
     bottom: 15px;
 }
 
+.formCategory{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.formCategoryContainer{
+    cursor: pointer;
+    padding: 0 80px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.categoryNameContainer{
+    text-align: center;
+    padding-bottom: 10px;
+}
+.categoryName{
+    color: white;
+    font-size: 15px;
+}
+
 .imgh50{
     height: 50px;
 }

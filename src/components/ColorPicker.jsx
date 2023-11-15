@@ -362,8 +362,14 @@ export const ColorPicker = () => {
 
     async function toSignsAndMedals(form){
         form.config = await fetchManager.fetchFormConfig(currentFormFolder);
-        if(form.config && form.config['rightItemsDefault'] === 'plank'){
-            switchRightItems();
+        if(form.config){
+            if(form.config['rightItemsDefault'] === 'plank'){
+                switchRightItems('medal');
+            }
+            if(form.config['rightItemsDefault'] === 'medal'){
+                switchRightItems('plank');
+            }
+
         }
         setCurrentForm(form);
     }
@@ -433,6 +439,10 @@ export const ColorPicker = () => {
 
     function editPrevForm(){
         setIsFormInserted(false);
+        setMedalsSearch('');
+        setSignsSearch('');
+        setFilteredMedals(search(medalsSearch, medals));
+        setFilteredSigns(search(signsSearch, signs));
     }
 
     async function toNewForm(){
@@ -458,9 +468,11 @@ export const ColorPicker = () => {
                 setIsLoading(true)
                 currentForm.config = await fetchManager.fetchFormConfig(currentFormFolder);
                 let insertFormResult = await executor.insertImageToPhotoshop(currentForm.file.path);
-                let textLayerResult;
                 let formLayer = app.activeDocument.layers.find(layer => layer.id === insertFormResult[0].ID);
+                await executor.alignCenterLayer();
+
                 //Текст
+                let textLayerResult;
                 if(initials){
                     textLayerResult =  await executor.createTextLayer(initials);
                     let initialsLayer = app.activeDocument.layers.find(layer => layer.id === textLayerResult[0].layerID)
@@ -594,6 +606,7 @@ export const ColorPicker = () => {
             }
             let itemLayerId = await placeItem(item);
             item.layer = app.activeDocument.layers.find(layer => layer.id === itemLayerId);
+            await executor.alignCenterLayer();
 
             item.width = item.layer.bounds.width;
             item.height = item.layer.bounds.height;
@@ -703,20 +716,16 @@ export const ColorPicker = () => {
         return scale;
     }
 
-
-
     async function execute(pluginFunc){
         return await photoshop.core.executeAsModal(pluginFunc);
     }
 
-    async function createNewLayerInApp(options){
-        let activeDocument = app.activeDocument;
-        return await execute(() => activeDocument.createLayer(options));
-    }
-
-
-    function switchRightItems() {
-        switch (rightItemName){
+    function switchRightItems(name) {
+        let toSwitchName = name;
+        if(!toSwitchName){
+            toSwitchName = rightItemName;
+        }
+        switch (toSwitchName){
             case 'plank': {
                 rightItemName = 'medal';
                 setFilteredMedals(search(medalsSearch, medals));
@@ -765,16 +774,18 @@ export const ColorPicker = () => {
                                         return (
                                             <div>
                                                 <h2>{formCategory.title}</h2>
-                                                <sp-radio-group label="Medium" name='${formCategory.title}' >
+                                                <div className={'formCategoryContainer'} label="Medium" name='${formCategory.title}' >
                                                     {formCategory.categoryItems.map((category, index) => {
                                                         return (
-                                                            <div>
-                                                                <sp-radio onInput={() => nextCategory(category.name)} value="${itemName + index}" size="m" key={category.name + index}> {category.name} </sp-radio>
-                                                                <img onClick={() => nextCategory(category.name)} className={'imgw60'} src={category.file?.file64} alt=""/>
+                                                            <div className={formCategory} onClick={() => nextCategory(category.name)} key={category.name + index}>
+                                                                <div className={'categoryNameContainer'}>
+                                                                    <span className={'categoryName'}> {category.name} </span>
+                                                                </div>
+                                                                <div><img src={category.file?.file64} alt=""/></div>
                                                             </div>
                                                         )
                                                     })}
-                                                </sp-radio-group>
+                                                </div>
                                             </div>
                                         )
                                     }
