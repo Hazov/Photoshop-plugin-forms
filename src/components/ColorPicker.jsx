@@ -33,7 +33,7 @@ let straps = [];
 
 let itemOffsets = {};
 
-let itemNamesList = ['medal', 'plank', 'sign', 'grade', 'leftMedal', 'rightMedal'];
+let itemTypesList = ['medal', 'plank', 'sign', 'grade', 'leftMedal', 'rightMedal'];
 
 export const ColorPicker = () => {
     let [rightItemName, setRightItemName] = useState(DEFAULT_MEDAL_ITEM_NAME)
@@ -66,20 +66,20 @@ export const ColorPicker = () => {
             //Загрузка начальной категории
             fetchService.fetchFormCategory(await fileService.getFolderByPath(currentFormFolder)).then(resolve => setFormCategory(resolve));
             //Загрузка ячеек для выбора
-            for (let itemName of itemNamesList) {
-                await updateSelectedCells(await getItemSet(itemName));
+            for (let itemType of itemTypesList) {
+                await updateSelectedCells(await getItemsSuite(itemType));
             }
             //Загрузка всех погон
             straps = await fetchService.fetchStraps();
             //Загрузка всех медалей
-            let fetchResolve = await fetchService.fetchItems(await getItemSet(DEFAULT_MEDAL_ITEM_NAME, true), itemFiles)
+            let fetchResolve = await fetchService.fetchItems(await getItemsSuite(DEFAULT_MEDAL_ITEM_NAME, true), itemFiles)
             setMedals(fetchResolve);
             setFilteredMedals(fetchResolve)
             //Загрузка всех планок
-            fetchResolve = await fetchService.fetchItems(await getItemSet(DEFAULT_PLANKS_ITEM_NAME, true), itemFiles)
+            fetchResolve = await fetchService.fetchItems(await getItemsSuite(DEFAULT_PLANKS_ITEM_NAME, true), itemFiles)
             setPlanks(fetchResolve);
             //Загрузка всех значков
-            fetchResolve = await fetchService.fetchItems(await getItemSet(DEFAULT_SIGNS_ITEM_NAME), itemFiles)
+            fetchResolve = await fetchService.fetchItems(await getItemsSuite(DEFAULT_SIGNS_ITEM_NAME), itemFiles)
             setSigns(fetchResolve);
             setFilteredSigns(fetchResolve)
         }
@@ -89,41 +89,41 @@ export const ColorPicker = () => {
         if(itemName === 'rightItem'){
             itemName = rightItemName
         }
-        let itemSet = await getItemSet(itemName);
-        if(isIncrease && itemSet.maxItemsInRow > itemSet.itemsInRow){
-            itemSet.itemsInRowSetter(++itemSet.itemsInRow);
-        } else if(!isIncrease && itemSet.minItemsInRow < itemSet.itemsInRow){
-            itemSet.itemsInRowSetter(--itemSet.itemsInRow);
+        let itemSuite = await getItemsSuite(itemName);
+        if(isIncrease && itemSuite.maxItemsInRow > itemSuite.itemsInRow){
+            itemSuite.itemsInRowSetter(++itemSuite.itemsInRow);
+        } else if(!isIncrease && itemSuite.minItemsInRow < itemSuite.itemsInRow){
+            itemSuite.itemsInRowSetter(--itemSuite.itemsInRow);
         } else {
             return;
         }
-        await updateSelectedCells(itemSet);
+        await updateSelectedCells(itemSuite);
     }
-    async function updateSelectedCells(itemSet) {
-        let allSelectedItems = itemSet.selectedItems.flatMap(item => item);
+    async function updateSelectedCells(itemSuite) {
+        let multiTypesSelectedItems = itemSuite.selectedItems.flatMap(item => item);
         let rowsArray = [];
-        for(let i = 0; i < itemSet.itemRowsCount; i++){
+        for(let i = 0; i < itemSuite.itemRowsCount; i++){
             let cellsArray = [];
-            for (let j = 0; j < itemSet.itemsInRow; j++) {
-                let selectedIdx = i * itemSet.itemsInRow + j;
+            for (let j = 0; j < itemSuite.itemsInRow; j++) {
+                let selectedIdx = i * itemSuite.itemsInRow + j;
                 let selectedItem = null;
-                if(allSelectedItems && allSelectedItems.length && allSelectedItems.length > selectedIdx && allSelectedItems[selectedIdx]){
-                    selectedItem = allSelectedItems[selectedIdx];
-                    allSelectedItems[selectedIdx] = null;
+                if(multiTypesSelectedItems && multiTypesSelectedItems.length && multiTypesSelectedItems.length > selectedIdx && multiTypesSelectedItems[selectedIdx]){
+                    selectedItem = multiTypesSelectedItems[selectedIdx];
+                    multiTypesSelectedItems[selectedIdx] = null;
                 }
                 cellsArray.push(selectedItem);
             }
             rowsArray.push(cellsArray);
         }
-        itemSet.selectedSetter(rowsArray);
-        let groupedSelectedItems = utilService.groupBy(allSelectedItems, 'itemName');
-        for (let group of groupedSelectedItems) {
-            let itemSet = await getItemSet(group[0].itemName);
-            group.forEach(item => itemSet.allItems.push(item));
-            itemSet.allItemsSetter(itemSet.allItems);
+        itemSuite.selectedSetter(rowsArray);
+        let groupedSelectedItems = utilService.groupBy(multiTypesSelectedItems, 'itemName');
+        for (let byTypeGroup of groupedSelectedItems) {
+            let itemSuite = await getItemsSuite(byTypeGroup[0].itemName);
+            byTypeGroup.forEach(item => itemSuite.allItems.push(item));
+            itemSuite.allItemsSetter(itemSuite.allItems);
         }
-        if(itemSet.allItems && itemSet.allItems.length){
-            itemSet.filteredSetter(search(itemSet.search, itemSet.allItems));
+        if(itemSuite.allItems && itemSuite.allItems.length){
+            itemSuite.filteredSetter(search(itemSuite.search, itemSuite.allItems));
         }
     }
 
@@ -158,8 +158,8 @@ export const ColorPicker = () => {
     }
 
     function getItemPreviewSize(item){
-        let itemName = item.itemName;
-        if(itemName === 'plank' && itemName === 'grade'){
+        let itemType = item.itemName;
+        if(itemType === 'plank' && itemType === 'grade'){
             return 'imgh50';
         }
         return 'imgw100';
@@ -170,118 +170,118 @@ export const ColorPicker = () => {
     function signsInRowSetter(count){
         signsInRow = count;
     }
-    async function getItemSet(itemName, init){
+    async function getItemsSuite(itemType, init){
         let rightName = rightItemName;
         if(init){
-            rightName = itemName;
+            rightName = itemType;
         }
-        let itemSet = {};
-        itemSet.itemName = itemName;
-        switch (itemName){
+        let itemSuite = {};
+        itemSuite.itemName = itemType;
+        switch (itemType){
             case 'sign': {
-                itemSet.search = signsSearch;
-                itemSet.itemRowsCount = signRowsCount;
-                itemSet.itemsInRow = signsInRow;
-                itemSet.itemsInRowSetter = signsInRowSetter;
-                itemSet.minItemsInRow = 2;
-                itemSet.maxItemsInRow = 4;
-                itemSet.selectedItems = selectedSigns;
-                itemSet.selectedSetter = setSelectedSigns;
-                itemSet.allItems = signs;
-                itemSet.allItemsSetter = setSigns;
-                itemSet.filteredItems = filteredSigns;
-                itemSet.filteredSetter = setFilteredSigns;
-                itemSet.itemFolder = await fetchService.getSignsFolder();
-                itemSet.itemSearchInput = 'signsSearchInput'
+                itemSuite.search = signsSearch;
+                itemSuite.itemRowsCount = signRowsCount;
+                itemSuite.itemsInRow = signsInRow;
+                itemSuite.itemsInRowSetter = signsInRowSetter;
+                itemSuite.minItemsInRow = 2;
+                itemSuite.maxItemsInRow = 4;
+                itemSuite.selectedItems = selectedSigns;
+                itemSuite.selectedSetter = setSelectedSigns;
+                itemSuite.allItems = signs;
+                itemSuite.allItemsSetter = setSigns;
+                itemSuite.filteredItems = filteredSigns;
+                itemSuite.filteredSetter = setFilteredSigns;
+                itemSuite.itemFolder = await fetchService.getSignsFolder();
+                itemSuite.itemSearchInput = 'signsSearchInput'
                 break;
             }
             case 'medal': {
-                itemSet.search = medalsSearch;
-                itemSet.itemRowsCount = medalRowsCount;
-                itemSet.itemsInRow = medalsInRow;
-                itemSet.itemsInRowSetter = medalsInRowSetter;
-                itemSet.minItemsInRow = 3;
-                itemSet.maxItemsInRow = 5;
-                itemSet.selectedItems = selectedMedals;
-                itemSet.selectedSetter = setSelectedMedals;
-                itemSet.allItems = medals;
-                itemSet.allItemsSetter = setMedals;
-                itemSet.filteredItems = filteredMedals;
-                itemSet.filteredSetter = setFilteredMedals;
-                itemSet.itemFolder = await fetchService.getMedalsFolder(rightName);
-                itemSet.itemSearchInput = 'medalsSearchInput'
+                itemSuite.search = medalsSearch;
+                itemSuite.itemRowsCount = medalRowsCount;
+                itemSuite.itemsInRow = medalsInRow;
+                itemSuite.itemsInRowSetter = medalsInRowSetter;
+                itemSuite.minItemsInRow = 3;
+                itemSuite.maxItemsInRow = 5;
+                itemSuite.selectedItems = selectedMedals;
+                itemSuite.selectedSetter = setSelectedMedals;
+                itemSuite.allItems = medals;
+                itemSuite.allItemsSetter = setMedals;
+                itemSuite.filteredItems = filteredMedals;
+                itemSuite.filteredSetter = setFilteredMedals;
+                itemSuite.itemFolder = await fetchService.getMedalsFolder(rightName);
+                itemSuite.itemSearchInput = 'medalsSearchInput'
                 break;
             }
             case 'plank': {
-                itemSet.search = medalsSearch;
-                itemSet.itemRowsCount = medalRowsCount;
-                itemSet.itemsInRow = medalsInRow;
-                itemSet.itemsInRowSetter = medalsInRowSetter;
-                itemSet.minItemsInRow = 3;
-                itemSet.maxItemsInRow = 5;
-                itemSet.selectedItems = selectedMedals;
-                itemSet.selectedSetter = setSelectedMedals;
-                itemSet.allItems = planks;
-                itemSet.allItemsSetter = setPlanks;
-                itemSet.filteredItems = filteredMedals;
-                itemSet.filteredSetter = setFilteredMedals;
-                itemSet.itemFolder = await fetchService.getMedalsFolder(rightName);
-                itemSet.itemSearchInput = 'medalsSearchInput'
+                itemSuite.search = medalsSearch;
+                itemSuite.itemRowsCount = medalRowsCount;
+                itemSuite.itemsInRow = medalsInRow;
+                itemSuite.itemsInRowSetter = medalsInRowSetter;
+                itemSuite.minItemsInRow = 3;
+                itemSuite.maxItemsInRow = 5;
+                itemSuite.selectedItems = selectedMedals;
+                itemSuite.selectedSetter = setSelectedMedals;
+                itemSuite.allItems = planks;
+                itemSuite.allItemsSetter = setPlanks;
+                itemSuite.filteredItems = filteredMedals;
+                itemSuite.filteredSetter = setFilteredMedals;
+                itemSuite.itemFolder = await fetchService.getMedalsFolder(rightName);
+                itemSuite.itemSearchInput = 'medalsSearchInput'
                 break;
             }
             case 'leftMedal': {
-                itemSet.search = medalsSearch;
-                itemSet.itemRowsCount = 1;
-                itemSet.itemsInRow = 3;
-                itemSet.itemsInRowSetter = medalsInRowSetter;
-                itemSet.minItemsInRow = 3;
-                itemSet.maxItemsInRow = 3;
-                itemSet.selectedItems = selectedLeftMedals;
-                itemSet.selectedSetter = setSelectedLeftMedals;
-                itemSet.allItems = medals;
-                itemSet.allItemsSetter = setMedals;
-                itemSet.filteredItems = filteredMedals;
-                itemSet.filteredSetter = setFilteredMedals;
-                itemSet.itemFolder = await fetchService.getMedalsFolder('medal');
-                itemSet.itemSearchInput = 'medalsSearchInput'
+                itemSuite.search = medalsSearch;
+                itemSuite.itemRowsCount = 1;
+                itemSuite.itemsInRow = 3;
+                itemSuite.itemsInRowSetter = medalsInRowSetter;
+                itemSuite.minItemsInRow = 3;
+                itemSuite.maxItemsInRow = 3;
+                itemSuite.selectedItems = selectedLeftMedals;
+                itemSuite.selectedSetter = setSelectedLeftMedals;
+                itemSuite.allItems = medals;
+                itemSuite.allItemsSetter = setMedals;
+                itemSuite.filteredItems = filteredMedals;
+                itemSuite.filteredSetter = setFilteredMedals;
+                itemSuite.itemFolder = await fetchService.getMedalsFolder('medal');
+                itemSuite.itemSearchInput = 'medalsSearchInput'
                 break;
             }
             case 'rightMedal': {
-                itemSet.search = medalsSearch;
-                itemSet.itemRowsCount = 1;
-                itemSet.itemsInRow = 3;
-                itemSet.itemsInRowSetter = medalsInRowSetter;
-                itemSet.minItemsInRow = 3;
-                itemSet.maxItemsInRow = 3;
-                itemSet.selectedItems = selectedRightMedals;
-                itemSet.selectedSetter = setSelectedRightMedals;
-                itemSet.allItems = medals;
-                itemSet.allItemsSetter = setMedals;
-                itemSet.filteredItems = filteredMedals;
-                itemSet.filteredSetter = setFilteredMedals;
-                itemSet.itemFolder = await fetchService.getMedalsFolder('medal');
-                itemSet.itemSearchInput = 'medalsSearchInput'
+                itemSuite.search = medalsSearch;
+                itemSuite.itemRowsCount = 1;
+                itemSuite.itemsInRow = 3;
+                itemSuite.itemsInRowSetter = medalsInRowSetter;
+                itemSuite.minItemsInRow = 3;
+                itemSuite.maxItemsInRow = 3;
+                itemSuite.selectedItems = selectedRightMedals;
+                itemSuite.selectedSetter = setSelectedRightMedals;
+                itemSuite.allItems = medals;
+                itemSuite.allItemsSetter = setMedals;
+                itemSuite.filteredItems = filteredMedals;
+                itemSuite.filteredSetter = setFilteredMedals;
+                itemSuite.itemFolder = await fetchService.getMedalsFolder('medal');
+                itemSuite.itemSearchInput = 'medalsSearchInput'
                 break;
             }
             case 'grade': {
-                itemSet.search = signsSearch;
-                itemSet.itemRowsCount = 1;
-                itemSet.itemsInRow = 1;
-                itemSet.itemsInRowSetter = signsInRowSetter;
-                itemSet.minItemsInRow = 1;
-                itemSet.maxItemsInRow = 1;
-                itemSet.selectedItems = selectedGrade;
-                itemSet.selectedSetter = setSelectedGrade;
-                itemSet.allItems = signs;
-                itemSet.allItemsSetter = setSigns;
-                itemSet.filteredItems = filteredSigns;
-                itemSet.filteredSetter = setFilteredSigns;
-                itemSet.itemFolder = await fetchService.getSignsFolder();
-                itemSet.itemSearchInput = 'signsSearchInput'
+                itemSuite.search = signsSearch;
+                itemSuite.itemRowsCount = 1;
+                itemSuite.itemsInRow = 1;
+                itemSuite.itemsInRowSetter = signsInRowSetter;
+                itemSuite.minItemsInRow = 1;
+                itemSuite.maxItemsInRow = 1;
+                itemSuite.selectedItems = selectedGrade;
+                itemSuite.selectedSetter = setSelectedGrade;
+                itemSuite.allItems = signs;
+                itemSuite.allItemsSetter = setSigns;
+                itemSuite.filteredItems = filteredSigns;
+                itemSuite.filteredSetter = setFilteredSigns;
+                itemSuite.itemFolder = await fetchService.getSignsFolder();
+                itemSuite.itemSearchInput = 'signsSearchInput'
                 break;
             }
         }
-        return itemSet;
+        return itemSuite;
 
     }
 
@@ -335,9 +335,9 @@ export const ColorPicker = () => {
     async function searchMedals(e){
         let value = e.target.value;
         setMedalsSearch(value);
-        let itemSet =  await getItemSet(rightItemName);
-        if(itemSet.allItems){
-            setFilteredMedals(search(value, itemSet.allItems));
+        let itemSuite =  await getItemsSuite(rightItemName);
+        if(itemSuite.allItems){
+            setFilteredMedals(search(value, itemSuite.allItems));
         }
     }
 
@@ -364,59 +364,59 @@ export const ColorPicker = () => {
         form.config = await fetchService.fetchFormConfig(currentFormFolder);
         if(form.config){
             if(form.config['rightItemsDefault'] === 'plank'){
+                setInitials(null);
                 switchRightItems('medal');
             }
             if(form.config['rightItemsDefault'] === 'medal'){
                 switchRightItems('plank');
             }
-
         }
         setCurrentForm(form);
     }
 
     function getActuallyItemName(item){
-        let itemName;
+        let itemType;
         if(item.itemName === 'medal' || item.itemName === 'plank'){
-            itemName = rightItemName;
+            itemType = rightItemName;
         } else {
-            itemName = item.itemName;
+            itemType = item.itemName;
         }
-        return itemName;
+        return itemType;
     }
 
     async function addItemToSelected(item){
-        let itemName = getActuallyItemName(item)
-        let itemSet = await getItemSet(itemName);
+        let itemType = getActuallyItemName(item)
+        let itemSuite = await getItemsSuite(itemType);
 
-        let coordCell = defineCoordToAdd(itemSet.selectedItems);
-        let newSelectedItems = JSON.parse(JSON.stringify(itemSet.selectedItems));
+        let coordCell = defineCoordToAdd(itemSuite.selectedItems);
+        let newSelectedItems = JSON.parse(JSON.stringify(itemSuite.selectedItems));
         newSelectedItems[coordCell.row][coordCell.cell] = item;
-        itemSet.selectedSetter(newSelectedItems);
+        itemSuite.selectedSetter(newSelectedItems);
 
-        let inAllItemIndex = utilService.indexOf(itemSet.allItems, item);
-        let allItemsWithoutItem = itemSet.allItems.filter((item, index) => index !== inAllItemIndex);
-        itemSet.allItemsSetter(allItemsWithoutItem);
+        let inAllItemIndex = utilService.indexOf(itemSuite.allItems, item);
+        let allItemsWithoutItem = itemSuite.allItems.filter((item, index) => index !== inAllItemIndex);
+        itemSuite.allItemsSetter(allItemsWithoutItem);
 
-        let inFilteredItemIndex = utilService.indexOf(itemSet.filteredItems, item);
-        let filteredItemsWithoutItem = itemSet.filteredItems.filter((item, index) => index !== inFilteredItemIndex);
-        itemSet.filteredSetter(filteredItemsWithoutItem);
+        let inFilteredItemIndex = utilService.indexOf(itemSuite.filteredItems, item);
+        let filteredItemsWithoutItem = itemSuite.filteredItems.filter((item, index) => index !== inFilteredItemIndex);
+        itemSuite.filteredSetter(filteredItemsWithoutItem);
 
 
     }
 
     async function deleteItemFromSelected(itemRowIndex, itemCellIndex, item){
-        let itemSet = await getItemSet(item.itemName);
-        let selectedItems = JSON.parse(JSON.stringify(itemSet.selectedItems));
+        let itemSuite = await getItemsSuite(item.itemName);
+        let selectedItems = JSON.parse(JSON.stringify(itemSuite.selectedItems));
         let selectedItem = selectedItems[itemRowIndex][itemCellIndex];
         let selectedItemCopy = JSON.parse(JSON.stringify(selectedItem));
         selectedItems[itemRowIndex][itemCellIndex] = null;
-        itemSet.selectedSetter(selectedItems);
-        let allItems = itemSet.allItems.concat(selectedItemCopy);
+        itemSuite.selectedSetter(selectedItems);
+        let allItems = itemSuite.allItems.concat(selectedItemCopy);
         allItems.sort((s1, s2) => (s1.name).localeCompare(s2.name));
-        itemSet.allItemsSetter(allItems);
+        itemSuite.allItemsSetter(allItems);
 
-        itemSet = await getItemSet(getActuallyItemName(item));
-        itemSet.filteredSetter(search(itemSet.search, itemSet.allItems))
+        itemSuite = await getItemsSuite(getActuallyItemName(item));
+        itemSuite.filteredSetter(search(itemSuite.search, itemSuite.allItems))
     }
 
     function defineCoordToAdd(array){
@@ -456,10 +456,16 @@ export const ColorPicker = () => {
         setMedals(medals);
         selectedGrade.flatMap(row => row).filter(item => item).forEach(item => signs.push(item));
         selectedSigns.flatMap(row => row).filter(item => item).forEach(item => signs.push(item));
+        selectedSigns = []
+        selectedMedals = []
+        selectedLeftMedals = [];
+        selectedRightMedals = [];
+        selectedGrade = [];
 
-        for (let itemName of itemNamesList) {
-            await updateSelectedCells(await getItemSet(itemName));
+        for (let itemType of itemTypesList) {
+            await updateSelectedCells(await getItemsSuite(itemType));
         }
+
     }
 
     async function insertFormToPhotoshop() {
@@ -483,11 +489,11 @@ export const ColorPicker = () => {
                     textLayerResult = [];
                 }
                 //Айтемы
-                let leftMedalLayerIds = await insertFormItemsToPhotoshop(selectedLeftMedals);
-                let rightMedalLayerIds = await insertFormItemsToPhotoshop(selectedRightMedals);
-                let medalLayerIds = await insertFormItemsToPhotoshop(selectedMedals);
                 let signLayerIds = await insertFormItemsToPhotoshop(selectedSigns);
                 let gradeLayerIds = await insertFormItemsToPhotoshop(selectedGrade);
+                let medalLayerIds = await insertFormItemsToPhotoshop(selectedMedals);
+                let leftMedalLayerIds = await insertFormItemsToPhotoshop(selectedLeftMedals);
+                let rightMedalLayerIds = await insertFormItemsToPhotoshop(selectedRightMedals);
 
                 await photoshopService.setLayers([ formLayer.id, ...medalLayerIds, ...signLayerIds, ...textLayerResult, ...gradeLayerIds, ...leftMedalLayerIds, ...rightMedalLayerIds]);
                 let resizePercentValue = getResizeFormValue(formLayer);
@@ -594,7 +600,7 @@ export const ColorPicker = () => {
     }
 
     async function placeItems(items){
-        let itemName = items[0].itemName;
+        let itemType = items[0].itemName;
         let layersInfo = [];
         let maxRowWidth = 0;
         for(let item of items){
@@ -611,24 +617,24 @@ export const ColorPicker = () => {
             item.width = item.layer.bounds.width;
             item.height = item.layer.bounds.height;
 
-            itemOffsets[itemName + 'Row-' + item.rowIdx + '-Width'] += item.width;
-            itemOffsets[itemName + 'Row-' + item.rowIdx + '-Height'] = Math.max(itemOffsets[itemName + 'Row-' + item.rowIdx + '-Height'], item.height);
+            itemOffsets[itemType + 'Row-' + item.rowIdx + '-Width'] += item.width;
+            itemOffsets[itemType + 'Row-' + item.rowIdx + '-Height'] = Math.max(itemOffsets[itemType + 'Row-' + item.rowIdx + '-Height'], item.height);
 
-            if(itemOffsets[itemName + 'MaxRowHeight'] < itemOffsets[itemName + 'Row-' + item.rowIdx + '-Height']){
-                itemOffsets[itemName + 'MaxRowHeight'] = itemOffsets[itemName + 'Row-' + item.rowIdx + '-Height'];
+            if(itemOffsets[itemType + 'MaxRowHeight'] < itemOffsets[itemType + 'Row-' + item.rowIdx + '-Height']){
+                itemOffsets[itemType + 'MaxRowHeight'] = itemOffsets[itemType + 'Row-' + item.rowIdx + '-Height'];
             }
 
             if(maxRowWidth < rowWidth) maxRowWidth = rowWidth;
             layersInfo.push({item: item, layerId: itemLayerId});
         }
-        if(itemOffsets[itemName + 'MaxRowWidth'] < maxRowWidth){
-            itemOffsets[itemName + 'MaxRowWidth'] = maxRowWidth
+        if(itemOffsets[itemType + 'MaxRowWidth'] < maxRowWidth){
+            itemOffsets[itemType + 'MaxRowWidth'] = maxRowWidth
         }
         let forPlanksOffset = 0;
         if(items[0].rowIdx !== 0){
             let lastRowIdx = items[0].rowIdx;
             for(let i = lastRowIdx; i > 0; i--){
-                forPlanksOffset +=  itemOffsets[itemName + 'Row-' + i + '-Height'];
+                forPlanksOffset +=  itemOffsets[itemType + 'Row-' + i + '-Height'];
             }
         }
         itemOffsets['forPlanksOffset'] = forPlanksOffset * currentForm.config['plankScale'] / 100;
@@ -662,18 +668,18 @@ export const ColorPicker = () => {
     }
     async function transformAllItems(layersInfo){
         try{
-            let itemNameLayersMap = new Map();
+            let itemTypeLayerMap = new Map();
             layersInfo.forEach(info => {
-                let itemName = info.item.itemName;
-                if(!itemNameLayersMap.get(itemName)){
-                    itemNameLayersMap.set(itemName, []);
+                let itemType = info.item.itemName;
+                if(!itemTypeLayerMap.get(itemType)){
+                    itemTypeLayerMap.set(itemType, []);
                 }
-                itemNameLayersMap.get(itemName).push(info.layerId);
+                itemTypeLayerMap.get(itemType).push(info.layerId);
             })
 
-            for(let itemName of itemNameLayersMap.keys()){
-                let layerIds = itemNameLayersMap.get(itemName);
-                let options = getItemTransformOptions(itemName)
+            for(let itemType of itemTypeLayerMap.keys()){
+                let layerIds = itemTypeLayerMap.get(itemType);
+                let options = getItemTransformOptions(itemType)
                 if(options){
                     await photoshopService.setLayers(layerIds);
                     await photoshopService.transformLayer(options);
@@ -684,27 +690,21 @@ export const ColorPicker = () => {
         }
 
     }
-
-
     function getItemTransformOptions(itemName, layer){
         let options = {};
-        if(currentForm.config){
-            let config = JSON.parse(JSON.stringify(currentForm.config));
-            if(itemName === 'initials' && config['pocketSize']){
-                options.scale = getScaleByPocket(config['pocketSize'], layer);
-            } else {
-                if(config[itemName + 'Scale']){
-                    options.scale = config[itemName + 'Scale'];
-                }
-            }
-            if(currentForm.config[itemName + 'Angle']){
-                options.angle = config[itemName + 'Angle'];
-            }
-            if(currentForm.config[itemName + 'Offset']){
-                options.offset = config[itemName + 'Offset'];
-            }
+        let config = JSON.parse(JSON.stringify(currentForm.config));
+        if(itemName === 'initials' && config['pocketSize']){
+            options.scale = getScaleByPocket(config['pocketSize'], layer);
         } else {
-            return null;
+            if(config[itemName + 'Scale']){
+                options.scale = config[itemName + 'Scale'];
+            }
+        }
+        if(currentForm.config[itemName + 'Angle']){
+            options.angle = config[itemName + 'Angle'];
+        }
+        if(currentForm.config[itemName + 'Offset']){
+            options.offset = config[itemName + 'Offset'];
         }
         return options;
     }
