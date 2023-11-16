@@ -490,6 +490,11 @@ export const ColorPicker = () => {
                 }
                 //Айтемы
                 let signLayerIds = await insertFormItemsToPhotoshop(selectedSigns);
+                if(signLayerIds.length){
+                    let signLayers = app.activeDocument.layers.filter(layer => signLayerIds.includes(layer.id));
+                    let signsWidth = signLayers.map(layer => layer.bounds.width).reduce((sum, layerWidth) => sum + layerWidth, 0);
+                    currentForm.config['gradeHOffset'] = signsWidth / 2;
+                }
                 let gradeLayerIds = await insertFormItemsToPhotoshop(selectedGrade);
                 let medalLayerIds = await insertFormItemsToPhotoshop(selectedMedals);
                 let leftMedalLayerIds = await insertFormItemsToPhotoshop(selectedLeftMedals);
@@ -575,24 +580,24 @@ export const ColorPicker = () => {
                 itemOffsets[item.itemName + 'HBetweenOffset'] = 0;
                 currentRowIdx = item.rowIdx;
             }
-            let forPlanksOffset = 0;
-            let hBetweenOffset = item.layer.bounds.width;
-            let vBetweenOffset = item.layer.bounds.height + 10;
+            let planksNextRowOffset = 0;
+            let layerWidth = item.layer.bounds.width;
+            let layerHeight = item.layer.bounds.height;
             let nextRowCenterOffset = itemOffsets[item.itemName + 'MaxRowWidth'] - itemOffsets[item.itemName + 'Row-' + item.rowIdx + '-Width'];
             nextRowCenterOffset = nextRowCenterOffset / 2;
             if(item.itemName === 'medal'){
-                hBetweenOffset = hBetweenOffset / 2;
-                vBetweenOffset = vBetweenOffset * 0.4;
+                layerWidth = layerWidth / 2;
+                layerHeight = layerHeight * 0.4;
                 nextRowCenterOffset = nextRowCenterOffset / 2;
             }
             if(item.itemName === 'plank'){
-                forPlanksOffset = itemOffsets['forPlanksOffset'];
+                planksNextRowOffset = itemOffsets['forPlanksOffset'];
             }
-            itemOffsets[item.itemName + 'VBetweenOffset'] = vBetweenOffset * item.rowIdx;
-            itemOffsets[item.itemName + 'HBetweenOffset'] += hBetweenOffset + 10;
+            itemOffsets[item.itemName + 'VBetweenOffset'] = layerHeight * item.rowIdx;
+            itemOffsets[item.itemName + 'HBetweenOffset'] += layerWidth;
 
-            item.offset.vertical = itemOffsets[item.itemName + 'VBetweenOffset'] - forPlanksOffset;
-            item.offset.horizontal = itemOffsets[item.itemName + 'HBetweenOffset'] + nextRowCenterOffset;
+            item.offset.vertical = itemOffsets[item.itemName + 'VBetweenOffset'] - planksNextRowOffset;
+            item.offset.horizontal = itemOffsets[item.itemName + 'HBetweenOffset'];
 
         }
 
