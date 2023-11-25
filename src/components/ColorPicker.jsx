@@ -490,11 +490,7 @@ export const ColorPicker = () => {
                 }
                 //Айтемы
                 let signLayerIds = await insertFormItemsToPhotoshop(selectedSigns);
-                if(signLayerIds.length){
-                    let signLayers = app.activeDocument.layers.filter(layer => signLayerIds.includes(layer.id));
-                    let signsWidth = signLayers.map(layer => layer.bounds.width).reduce((sum, layerWidth) => sum + layerWidth, 0);
-                    currentForm.config['gradeHOffset'] = signsWidth / 2;
-                }
+                currentForm.config['gradeHOffset'] = currentForm.config['signHOffset']
                 let gradeLayerIds = await insertFormItemsToPhotoshop(selectedGrade);
                 let medalLayerIds = await insertFormItemsToPhotoshop(selectedMedals);
                 let leftMedalLayerIds = await insertFormItemsToPhotoshop(selectedLeftMedals);
@@ -597,7 +593,7 @@ export const ColorPicker = () => {
             itemOffsets[item.itemName + 'HBetweenOffset'] += layerWidth;
 
             item.offset.vertical = itemOffsets[item.itemName + 'VBetweenOffset'] - planksNextRowOffset;
-            item.offset.horizontal = itemOffsets[item.itemName + 'HBetweenOffset'];
+            item.offset.horizontal = itemOffsets[item.itemName + 'HBetweenOffset'] + nextRowCenterOffset;
 
         }
 
