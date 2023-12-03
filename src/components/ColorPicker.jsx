@@ -475,22 +475,22 @@ export const ColorPicker = () => {
                 currentForm.config = await fetchService.fetchFormConfig(currentFormFolder);
                 let insertFormResult = await photoshopService.insertImageToPhotoshop(currentForm.file.path);
                 let formLayer = app.activeDocument.layers.find(layer => layer.id === insertFormResult[0].ID);
-                await photoshopService.alignCenterLayer();
-
+                await photoshopService.alignCenterRelativeToDocument();
                 //Текст
                 let textLayerResult;
                 if(initials){
                     textLayerResult =  await photoshopService.createTextLayer(initials);
                     let initialsLayer = app.activeDocument.layers.find(layer => layer.id === textLayerResult[0].layerID)
                     textLayerResult = [textLayerResult[0].layerID];
-                    await photoshopService.alignCenterLayer();
+                    await photoshopService.alignCenterRelativeToDocument();
                     await photoshopService.transformLayer(getItemTransformOptions('initials', initialsLayer))
                 } else {
                     textLayerResult = [];
                 }
+
                 //Айтемы
                 let signLayerIds = await insertFormItemsToPhotoshop(selectedSigns);
-                currentForm.config['gradeHOffset'] = currentForm.config['signHOffset']
+                currentForm.config['gradeHStartOffset'] = currentForm.config['signHStartOffset'];
                 let gradeLayerIds = await insertFormItemsToPhotoshop(selectedGrade);
                 let medalLayerIds = await insertFormItemsToPhotoshop(selectedMedals);
                 let leftMedalLayerIds = await insertFormItemsToPhotoshop(selectedLeftMedals);
@@ -519,36 +519,55 @@ export const ColorPicker = () => {
     async function insertFormItemsToPhotoshop(selectedItems){
         if(selectedItems.some(row => row.some(item => item))){
             try{
-                let finalItems = [];
-                selectedItems.forEach((selectedRow, rowIdx) => {
-                    let onlyFilled = selectedRow.filter(item => item);
-                    onlyFilled.forEach((item, itemIdx) => {
-                        item.rowIdx = rowIdx;
-                        item.itemIdx = itemIdx;
-                        item.offset = {};
-                        item.offset.vertical = 0;
-                        item.offset.horizontal = 0;
-                        item.itemsInRow = onlyFilled.length;
-                        finalItems.push(item);
-                    })
-                })
+                let items = prepareItemsToInsert(selectedItems);
 
-                //Располагаем посередине
-                finalItems = finalItems.reverse();
-                let layersInfo = await placeItems(finalItems);
-                //Двигаем на нужные позиции
-                finalItems = finalItems.reverse();
-                finalItems = applyOffsetsToItem(finalItems);
-                await alignItems(finalItems);
-                await offsetItems(finalItems);
+                //Располагаем в кучу посередине
+                items = await placeItems(items);
+                let layerIds = items.map(item => item.layer.id);
 
-                await transformAllItems(layersInfo);
-                return layersInfo.map(info => info.layerId);
+                //Раздвигаем относительно друг друга
+                items = applyAlignsItems(items);
+                await alignItems(items);
+
+                //Центрируем весь блок, для ровного сдвига
+
+                await moveBlockItemsToCenter(items);
+
+                //Весь блок двигаем на грудь
+                await offsetItems(items);
+
+                //Трансформируем слои (масштаб, угол...)
+                await transformAllItems(items);
+                return layerIds;
             } catch(e){
                 console.log(e)
             }
         }
         return [];
+    }
+
+    function prepareItemsToInsert(selectedItems){
+        let preparedItems = [];
+        selectedItems.forEach((selectedRow, rowIdx) => {
+            let onlyFilled = selectedRow.filter(item => item);
+            onlyFilled.forEach((item, itemIdx) => {
+                item.rowIdx = rowIdx;
+                item.itemIdx = itemIdx;
+                item.offset = {};
+                item.offset.vertical = 0;
+                item.offset.horizontal = 0;
+                item.itemsInRow = onlyFilled.length;
+                preparedItems.push(item);
+            })
+        })
+        return preparedItems;
+    }
+
+    async function moveBlockItemsToCenter(items){
+        let layerIds = items.map(item => item.layer.id);
+        await photoshopService.groupLayers(layerIds);
+        await photoshopService.alignCenterRelativeToDocument();
+        await photoshopService.ungroupLayers();
     }
 
     async function alignItems(items){
@@ -568,32 +587,47 @@ export const ColorPicker = () => {
         await photoshopService.moveImage(offset);
     }
 
-    function applyOffsetsToItem(items){
-
+    function applyAlignsItems(items){
+        items = items.reverse();
         let currentRowIdx = 0;
+        let index = 0;
         for(let item of items){
             if(currentRowIdx < item.rowIdx){
                 itemOffsets[item.itemName + 'HBetweenOffset'] = 0;
+                index = 0;
                 currentRowIdx = item.rowIdx;
             }
             let planksNextRowOffset = 0;
             let layerWidth = item.layer.bounds.width;
-            let layerHeight = item.layer.bounds.height;
-            let nextRowCenterOffset = itemOffsets[item.itemName + 'MaxRowWidth'] - itemOffsets[item.itemName + 'Row-' + item.rowIdx + '-Width'];
-            nextRowCenterOffset = nextRowCenterOffset / 2;
+
+            let smallRowCenterOffset = 0;
+            if(itemOffsets[item.itemName + 'MaxRowWidth'] !== itemOffsets[item.itemName + 'Row-' + item.rowIdx + '-Width']){
+                smallRowCenterOffset = itemOffsets[item.itemName + 'MaxRowWidth'] / 2 - layerWidth / 2;
+            }
             if(item.itemName === 'medal'){
                 layerWidth = layerWidth / 2;
-                layerHeight = layerHeight * 0.4;
-                nextRowCenterOffset = nextRowCenterOffset / 2;
+                if(smallRowCenterOffset){
+                    smallRowCenterOffset = smallRowCenterOffset / 2;
+                }
             }
             if(item.itemName === 'plank'){
                 planksNextRowOffset = itemOffsets['forPlanksOffset'];
             }
-            itemOffsets[item.itemName + 'VBetweenOffset'] = layerHeight * item.rowIdx;
-            itemOffsets[item.itemName + 'HBetweenOffset'] += layerWidth;
+            let sumHeight = 0;
+            for(let i = 0; i < currentRowIdx; i++){
+                sumHeight += itemOffsets[item.itemName + 'Row-' + i + '-Height'];
+            }
+            if(item.itemName === 'medal'){
+                sumHeight *= 0.32;
+            }
+            itemOffsets[item.itemName + 'VBetweenOffset'] = sumHeight;
 
-            item.offset.vertical = itemOffsets[item.itemName + 'VBetweenOffset'] - planksNextRowOffset;
-            item.offset.horizontal = itemOffsets[item.itemName + 'HBetweenOffset'] + nextRowCenterOffset;
+
+            item.offset.vertical = itemOffsets[item.itemName + 'VBetweenOffset'] - planksNextRowOffset + (15 * currentRowIdx);
+            item.offset.horizontal = itemOffsets[item.itemName + 'HBetweenOffset'] + smallRowCenterOffset + (20 * index);
+
+            itemOffsets[item.itemName + 'HBetweenOffset'] += layerWidth;
+            index++;
 
         }
 
@@ -601,45 +635,48 @@ export const ColorPicker = () => {
     }
 
     async function placeItems(items){
+        items = items.reverse();
         let itemType = items[0].itemName;
-        let layersInfo = [];
         let maxRowWidth = 0;
+        let index = 0;
         for(let item of items){
             initItemOffsets(item);
-            let rowWidth = 0;
             let currentRowIdx = item.rowIdx;
             if(currentRowIdx !== item.rowIdx || items.indexOf(item) === items.length - 1){
-                rowWidth = 0;
+                index = 0;
             }
             let itemLayerId = await placeItem(item);
             item.layer = app.activeDocument.layers.find(layer => layer.id === itemLayerId);
-            await photoshopService.alignCenterLayer();
 
             item.width = item.layer.bounds.width;
             item.height = item.layer.bounds.height;
 
             itemOffsets[itemType + 'Row-' + item.rowIdx + '-Width'] += item.width;
-            itemOffsets[itemType + 'Row-' + item.rowIdx + '-Height'] = Math.max(itemOffsets[itemType + 'Row-' + item.rowIdx + '-Height'], item.height);
-
-            if(itemOffsets[itemType + 'MaxRowHeight'] < itemOffsets[itemType + 'Row-' + item.rowIdx + '-Height']){
-                itemOffsets[itemType + 'MaxRowHeight'] = itemOffsets[itemType + 'Row-' + item.rowIdx + '-Height'];
+            if(index !== 0){
+                itemOffsets[itemType + 'Row-' + item.rowIdx + '-Width'] += 20;
             }
+            itemOffsets[itemType + 'Row-' + item.rowIdx + '-Height'] = Math.max(itemOffsets[itemType + 'Row-' + item.rowIdx + '-Height'], item.height) + (15 * currentRowIdx);
 
-            if(maxRowWidth < rowWidth) maxRowWidth = rowWidth;
-            layersInfo.push({item: item, layerId: itemLayerId});
+            if(itemOffsets[itemType + 'MaxRowWidth'] < itemOffsets[itemType + 'Row-' + item.rowIdx + '-Width']){
+                itemOffsets[itemType + 'MaxRowWidth'] = itemOffsets[itemType + 'Row-' + item.rowIdx + '-Width'];
+            }
+            index++;
         }
-        if(itemOffsets[itemType + 'MaxRowWidth'] < maxRowWidth){
-            itemOffsets[itemType + 'MaxRowWidth'] = maxRowWidth
+        let layerIds = items.map(item => item.layer.id);
+        if(layerIds.length > 1){
+            await photoshopService.alignTopLeftLayers(layerIds);
+        } else {
+            await photoshopService.alignCenterRelativeToDocument()
         }
         let forPlanksOffset = 0;
         if(items[0].rowIdx !== 0){
             let lastRowIdx = items[0].rowIdx;
             for(let i = lastRowIdx; i > 0; i--){
-                forPlanksOffset +=  itemOffsets[itemType + 'Row-' + i + '-Height'];
+                forPlanksOffset +=  itemOffsets[itemType + 'Row-' + i + '-Height'] + 15;
             }
         }
         itemOffsets['forPlanksOffset'] = forPlanksOffset * currentForm.config['plankScale'] / 100;
-        return layersInfo;
+        return items;
     }
 
     function initItemOffsets(item){
@@ -655,9 +692,6 @@ export const ColorPicker = () => {
         if(!itemOffsets[item.itemName + 'HBetweenOffset']){
             itemOffsets[item.itemName + 'HBetweenOffset'] = 0;
         }
-        if(!itemOffsets[item.itemName + 'MaxRowHeight']){
-            itemOffsets[item.itemName + 'MaxRowHeight'] = 0;
-        }
         if(!itemOffsets[item.itemName + 'MaxRowWidth']){
             itemOffsets[item.itemName + 'MaxRowWidth'] = 0;
         }
@@ -667,15 +701,15 @@ export const ColorPicker = () => {
         let insertResult = await photoshopService.insertImageToPhotoshop(getItemFile(item).path);
         return insertResult[0].ID;
     }
-    async function transformAllItems(layersInfo){
+    async function transformAllItems(items){
         try{
             let itemTypeLayerMap = new Map();
-            layersInfo.forEach(info => {
-                let itemType = info.item.itemName;
+            items.forEach(item => {
+                let itemType = item.itemName;
                 if(!itemTypeLayerMap.get(itemType)){
                     itemTypeLayerMap.set(itemType, []);
                 }
-                itemTypeLayerMap.get(itemType).push(info.layerId);
+                itemTypeLayerMap.get(itemType).push(item.layer.id);
             })
 
             for(let itemType of itemTypeLayerMap.keys()){
@@ -694,8 +728,9 @@ export const ColorPicker = () => {
     function getItemTransformOptions(itemName, layer){
         let options = {};
         let config = JSON.parse(JSON.stringify(currentForm.config));
-        if(itemName === 'initials' && config['pocketSize']){
+        if(itemName === 'initials'){
             options.scale = getScaleByPocket(config['pocketSize'], layer);
+            options.offset = config[itemName + 'Offset'];
         } else {
             if(config[itemName + 'Scale']){
                 options.scale = config[itemName + 'Scale'];
@@ -703,9 +738,6 @@ export const ColorPicker = () => {
         }
         if(currentForm.config[itemName + 'Angle']){
             options.angle = config[itemName + 'Angle'];
-        }
-        if(currentForm.config[itemName + 'Offset']){
-            options.offset = config[itemName + 'Offset'];
         }
         return options;
     }

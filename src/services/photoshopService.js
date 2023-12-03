@@ -194,7 +194,8 @@ export class PhotoshopService {
         await this.execute(() => photoshop.action.batchPlay(selectDescriptor, {}));
     }
 
-    async selectAll(selection = 'allEnum'){
+    //Select имеется в виду выделение муравьями
+    async antSelectAll(selection = 'allEnum'){
         const selectAlDescriptor =
             [
                 {
@@ -218,7 +219,7 @@ export class PhotoshopService {
     }
 
     async deselectAll(){
-        await this.selectAll('none');
+        await this.antSelectAll('none');
     }
 
     async alignLayer(direction){
@@ -243,14 +244,76 @@ export class PhotoshopService {
                     }
                 }
             ];
+
         await this.execute(() => photoshop.action.batchPlay(alignDescriptor, {}));
     }
 
-    async alignCenterLayer(){
-        await this.selectAll();
+    async groupLayers(layerIds){
+        await this.setLayers(layerIds);
+        layerIds.sort((id1, id2) => id1 - id2);
+        let groupLayersDescriptor =
+            [
+                {
+                    _obj: "make",
+                    _target: [
+                        {
+                            _ref: "layerSection"
+                        }
+                    ],
+                    from: {
+                        _ref: "layer",
+                        _enum: "ordinal",
+                        _value: "targetEnum"
+                    },
+                    using: {
+                        _obj: "layerSection",
+                        name: "tempGroup"
+                    },
+                    layerSectionStart: layerIds[0],
+                    layerSectionEnd: layerIds[layerIds.length - 1],
+                    name: "c",
+                    _options: {
+                        dialogOptions: "dontDisplay"
+                    }
+                }
+            ];
+        return await this.execute(() => photoshop.action.batchPlay(groupLayersDescriptor, {}));
+    }
+
+    async ungroupLayers(){
+        const unGroupLayersDescriptor =
+            [
+                {
+                    _obj: "ungroupLayersEvent",
+                    _target: [
+                        {
+                            _ref: "layer",
+                            _enum: "ordinal",
+                            _value: "targetEnum"
+                        }
+                    ],
+                    _options: {
+                        dialogOptions: "dontDisplay"
+                    }
+                }
+            ];
+        return await this.execute(() => photoshop.action.batchPlay(unGroupLayersDescriptor, {}));
+    }
+
+    async alignCenterRelativeToDocument(){
+        await this.antSelectAll();
         await this.alignLayer("ADSCentersH");
         await this.alignLayer("ADSCentersV");
         await this.deselectAll();
+    }
+    async alignTopLeftLayers(layerIds){
+        //Сначала относительно документа
+        await this.setLayers(layerIds);
+        await this.alignCenterRelativeToDocument();
+        //Потом относительно друг друга
+        await this.alignLayer("ADSLefts");
+        await this.alignLayer("ADSCentersV");
+
     }
 
     async createTextLayer(text) {
