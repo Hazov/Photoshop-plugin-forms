@@ -19,7 +19,6 @@
 }
 
 .searchFormsInput{
-    width: 70%;
     height: 35px;
     font-size: 29px;
 }
@@ -45,14 +44,14 @@
 }
 #signList{
     overflow: auto;
-    height: 190px;
+    height: 300px;
     margin-top: 15px;
     border-radius: 10px;
     background-color: #252525;
     width: 100%;
 }#medalList{
      overflow: auto;
-     height: 190px;
+     height: 300px;
      margin-top: 15px;
      border-radius: 10px;
      background-color: #252525;
@@ -74,7 +73,7 @@
 }
 
 .formItems{
-    width: 260px;
+    width: 100%;
 }
 #mainTitle{
 
@@ -85,6 +84,11 @@
     justify-content: space-between;
     padding-left: 15px;
     padding-right: 15px;
+}
+
+.doneBtn{
+    width: 140px;
+    height: 50px;
 }
 
 .allFormsMenu{
@@ -105,16 +109,59 @@
     align-items: center;
 }
 
-#formItemView img{
-    width: 100px;
-}
-
 #signsItemsView {
     width: 100%;
 }
 
 #medalsItemsView{
     width: 100%;
+}
+
+.flex-column{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 4px;
+    cursor: pointer;
+}
+
+.active {
+    border: 4px solid white;
+    border-radius: 7px;
+    padding: 0;
+}
+
+.common-table-title-container{
+    padding-bottom: 10px;
+}
+
+.common-table-title{
+    font-size: 21px;
+    color: white;
+    padding-right: 10px;
+}
+
+.common-table-title-img{
+    width: 20px;
+}
+
+.clearImg{
+    cursor: pointer;
+    width: 15px;
+    margin-left: 5px;
+    margin-right: 5px;
+}
+
+#formItemView{
+    padding-top: 50px;
+    padding-bottom: 50px;
+}
+
+.flexTables{
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
 }
 
 .additionalItems{
@@ -155,7 +202,7 @@
 }
 
 .circleBtn{
-    width: 26px;
+    width: 26.4px;
 }
 .width100{
     width: 100%;
@@ -201,6 +248,12 @@
 .imgw40{
     position: relative;
     width: 40px;
+    cursor: pointer;
+}
+
+.imgh40{
+    position: relative;
+    height: 40px;
     cursor: pointer;
 }
 .imgw30{
@@ -294,8 +347,11 @@ sp-menu-item{
     width: 100px;
 }
 
-.img100{
-    width: 100px;
+.img200{
+    width: 200px;
+}
+.select-menu{
+    overflow-x: auto;
 }
 
 

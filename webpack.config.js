@@ -6,6 +6,7 @@ module.exports = {
     entry: './src/index.jsx',
     output: {
         path: path.resolve(__dirname, 'dist'),
+        publicPath: "./",
         filename: 'index.js',
         //libraryTarget: "commonjs2"
     },
