@@ -10,6 +10,7 @@ import {PhotoshopService} from "../services/PhotoshopService";
 import arrowLeftImg from '/src/images/arrow-left.png'
 import arrowRightImg from '/src/images/arrow-right.png'
 import clearImg from '/src/images/clear.png'
+import loadingImg from '/src/images/loading.gif'
 
 
 
@@ -43,6 +44,7 @@ export const ColorPicker = () => {
     let [rightItemName, setRightItemName] = useState(DEFAULT_MEDAL_ITEM_NAME)
     let [medalsSearch, setMedalsSearch] = useState('');
     let [signsSearch, setSignsSearch] = useState('');
+    let [formsSearch, setFormsSearch] = useState('');
     let [formCategory, setFormCategory] = useState({title: '', categoryItems: []});
     let [filteredForms, setFilteredForms] = useState([]);
     let [medals, setMedals] = useState([]);
@@ -331,8 +333,15 @@ export const ColorPicker = () => {
     }
 
     function searchForms(e) {
+        let value;
+        if(e == null){
+            value = ''
+        } else {
+            value = e.target.value;
+        }
+        setFormsSearch(value)
         if(formCategory && formCategory.formItems){
-            let searchedForms = search(e.target.value, formCategory.formItems);
+            let searchedForms = search(value, formCategory.formItems);
             searchedForms = searchedForms.sort(sortService.sortForms);
             setFilteredForms(searchedForms);
         }
@@ -380,10 +389,10 @@ export const ColorPicker = () => {
         form.config = await fetchService.fetchFormConfig(currentFormFolder);
         if(form.config){
             if(form.config['rightItemsDefault'] === 'plank'){
-                setInitials(null);
                 switchRightItems('medal');
             }
             if(form.config['rightItemsDefault'] === 'medal'){
+                setInitials(null);
                 switchRightItems('plank');
             }
         }
@@ -579,6 +588,10 @@ export const ColorPicker = () => {
             })
         })
         return preparedItems;
+    }
+
+    function isEmptySelected(selectedItems){
+        return !selectedItems.some(selectedRow => selectedRow.some(item => item))
     }
 
     async function moveBlockItemsToCenter(items){
@@ -832,6 +845,13 @@ export const ColorPicker = () => {
         el.classList.remove('active');
     }
 
+    function getClassForMainTitle(){
+        if(formStep === 'rightItemsStep' || formStep === 'signsStep'){
+            return 'displayNone';
+        }
+        return '';
+    }
+
     function leftSelectedTemplate(){
         return (
             <div>
@@ -1011,16 +1031,7 @@ export const ColorPicker = () => {
 
     return (
         <div className="pluginBody">
-            {(() => {
-                if(!isInit){
-                    return(
-                        <div>
-                            <progress className={'progress'} value={loadingProgressValue}/>
-                        </div>
-                    )
-                }
-            })()}
-            <h1 id="mainTitle">Форма</h1>
+            <h1 id="mainTitle" className={getClassForMainTitle()}>Форма</h1>
             {(() => {
                 if(!currentForm){
                     return (
@@ -1055,9 +1066,9 @@ export const ColorPicker = () => {
                                                 <div>
                                                     <h2>Список форм</h2>
                                                     <div className={'flex'}>
-                                                        <sp-textfield onInput={searchForms} class={'searchInput'} id="searchFormsInput" type="search">
+                                                        <sp-textfield value={formsSearch} onInput={searchForms} class="searchInput" id="searchFormsInput" type="search">
                                                         </sp-textfield>
-                                                        <img src={clearImg} className={'clearImg'} alt=""/>
+                                                        <img onClick={() => searchForms(null)} src={clearImg} className={'clearImg'} alt=""/>
                                                     </div>
 
                                                     <sp-card id="formList">
@@ -1135,13 +1146,13 @@ export const ColorPicker = () => {
 
                                         {/*ПРЕВЬЮ ФОРМЫ*/}
                                         <div id="formItemView" className={'flex'}>
-                                            <img className={'img200'} src={currentForm.file.file64} alt=""/>
+                                            <img className={'img170'} src={currentForm.file.file64} alt=""/>
                                         </div>
 
                                         {/*ИНИЦИАЛЫ*/}
                                         {(() => {if(currentForm.config['rightItemsDefault'] === 'plank'){
                                             return (
-                                                <div className={'width100'} id="initials">
+                                                <div className={'flex'} id="initials">
                                                     <sp-textfield value={initials} onInput={setInitialsValue} placeholder="Фамилия И.О." id ="initialInput" type="input"></sp-textfield>
                                                 </div>
                                             )
@@ -1170,25 +1181,40 @@ export const ColorPicker = () => {
                                             <h2>Значки</h2>
                                             {/*поиск*/}
                                             <div className={'flex'}>
-                                                <sp-textfield value={signsSearch}  onInput={searchSigns} class={'searchInput'} type="search">
+                                                <sp-textfield value={signsSearch} onInput={searchSigns} class="searchInput" type="search">
                                                 </sp-textfield>
                                                 <img onClick={() => searchSigns(null)} className={'clearImg'} src={clearImg} alt=""/>
                                             </div>
                                             {/*список*/}
-                                            <sp-card id="signList">
-                                                <sp-menu className={'select-menu'}>
-                                                    {filteredSigns.map((sign, index) => {
-                                                        return (
-                                                            <sp-menu-item onMouseEnter={() => showItemPreview(sign)} onMouseLeave={() => hideItemPreview()} onClick={() => addItemToSelected(sign)} className={'searchFormsBtn'} key={sign.name + index}>
-                                                                <div className={'menu-item'}>
-                                                                    <span>{sign.name}</span>
-                                                                    <img className={getPreviewItemSizeInList(sign)} src={getFile64(sign)} alt=""/>
-                                                                </div>
-                                                            </sp-menu-item>
-                                                        )
-                                                    })}
-                                                </sp-menu>
-                                            </sp-card>
+                                            {(() => {
+                                                if(signs?.length && medals?.length){
+                                                    return(
+                                                        <div>
+                                                            {/*список*/}
+                                                            <sp-card id="signList">
+                                                                <sp-menu className={'select-menu'}>
+                                                                    {filteredSigns.map((sign, index) => {
+                                                                        return (
+                                                                            <sp-menu-item onMouseEnter={() => showItemPreview(sign)} onMouseLeave={() => hideItemPreview()} onClick={() => addItemToSelected(sign)} className={'searchFormsBtn'} key={sign.name + index}>
+                                                                                <div className={'menu-item'}>
+                                                                                    <span>{sign.name}</span>
+                                                                                    <img className={getPreviewItemSizeInList(sign)} src={getFile64(sign)} alt=""/>
+                                                                                </div>
+                                                                            </sp-menu-item>
+                                                                        )
+                                                                    })}
+                                                                </sp-menu>
+                                                            </sp-card>
+                                                        </div>
+                                                    )
+                                                } else {
+                                                    return(
+                                                        <div className={'flex'}>
+                                                            <img src={loadingImg} alt=""/>
+                                                        </div>
+                                                    )
+                                                }
+                                            })()}
                                         </div>
                                         <div id={'controlButtons'}>
                                             <button className={'doneBtn'} onClick={() => changeStep('common')}>Завершить</button>
@@ -1200,7 +1226,9 @@ export const ColorPicker = () => {
                                                 return leftSelectedTemplate();
                                             })()}
                                             {(() => {
-                                                return rightSelectedTemplate();
+                                                if(!isEmptySelected(selectedMedals) || !isEmptySelected(selectedRightMedals)){
+                                                    return rightSelectedTemplate();
+                                                }
                                             })()}
                                         </div>
                                     </div>
@@ -1213,49 +1241,69 @@ export const ColorPicker = () => {
                         {(() => {
                             if(formStep === 'rightItemsStep'){
                                 return(
-                                    <div className={'formItems'}>
-                                        <div className={'flex'}>
-                                            <h2 className={rightItemName === 'medal' ? 'yellowItems' : 'redItems'}>{getUiName(rightItemName)}</h2>
-                                            <button onClick={() => switchRightItems()}>{getSwitchName(rightItemName)}</button>
-                                        </div>
+                                    <div>
+                                        <div>
+                                            <div className={'formItems'}>
+                                                <div className={'flex'}>
+                                                    <h2 className={rightItemName === 'medal' ? 'yellowItems' : 'redItems'}>{getUiName(rightItemName)}</h2>
+                                                    <button onClick={() => switchRightItems()}>{getSwitchName(rightItemName)}</button>
+                                                </div>
 
-                                        {/*поиск*/}
-                                        <div className={'flex'}>
-                                            <sp-textfield value={medalsSearch} onInput={searchMedals} class={'searchInput'} type="search">
-                                            </sp-textfield>
-                                            <img onClick={() => searchMedals(null)}  className={'clearImg'} src={clearImg} alt=""/>
-                                        </div>
+                                                {/*поиск*/}
+                                                <div className={'flex'}>
+                                                    <sp-textfield value={medalsSearch} onInput={searchMedals} class="searchInput" type="search">
+                                                    </sp-textfield>
+                                                    <img onClick={() => searchMedals(null)}  className={'clearImg'} src={clearImg} alt=""/>
+                                                </div>
 
-                                        {/*список*/}
-                                        <sp-card id="medalList">
-                                            <sp-menu className={'selectMenu'}>
-                                                {filteredMedals.map((medal, index) => {
-                                                    return (
-                                                        <sp-menu-item onMouseEnter={() => showItemPreview(medal)} onMouseLeave={() => hideItemPreview()} onClick={() => addItemToSelected(medal)} className={'searchFormsBtn'} key={medal.name + index}>
-                                                            <div className={'menu-item'}>
-                                                                <span className={rightItemName === 'medal' ? 'yellowItems' : 'redItems'}>{medal.name}</span>
-                                                                <img className={getPreviewItemSizeInList(medal)} src={getFile64(medal)} alt=""/>
+                                                {(() => {
+                                                    if(signs?.length && medals?.length){
+                                                        return(
+                                                            <div>
+                                                                {/*список*/}
+                                                                <sp-card id="medalList">
+                                                                    <sp-menu className={'selectMenu'}>
+                                                                        {filteredMedals.map((medal, index) => {
+                                                                            return (
+                                                                                <sp-menu-item onMouseEnter={() => showItemPreview(medal)} onMouseLeave={() => hideItemPreview()} onClick={() => addItemToSelected(medal)} className={'searchFormsBtn'} key={medal.name + index}>
+                                                                                    <div className={'menu-item'}>
+                                                                                        <span className={rightItemName === 'medal' ? 'yellowItems' : 'redItems'}>{medal.name}</span>
+                                                                                        <img className={getPreviewItemSizeInList(medal)} src={getFile64(medal)} alt=""/>
+                                                                                    </div>
+                                                                                </sp-menu-item>
+                                                                            )
+                                                                        })}
+                                                                    </sp-menu>
+                                                                </sp-card>
                                                             </div>
-                                                        </sp-menu-item>
-                                                    )
-                                                })}
-                                            </sp-menu>
-                                        </sp-card>
-                                        <div id={'controlButtons'}>
-                                            <sp-button onClick={() => changeStep('signsStep')}>К значкам</sp-button>
-                                            <button className={'doneBtn'} onClick={() => changeStep('common')}>Завершить</button>
-                                        </div>
+                                                        )
+                                                    } else {
+                                                        return(
+                                                            <div className={'flex'}>
+                                                                <img src={loadingImg} alt=""/>
+                                                            </div>
+                                                        )
+                                                    }
+                                                })()}
 
-                                        {/*ВЫБРАННЫЕ АЙТЕМЫ*/}
-                                        <div className={'flexTables'}>
-                                            {(() => {
-                                                return leftSelectedTemplate();
-                                            })()}
-                                            {(() => {
-                                                return rightSelectedTemplate();
-                                            })()}
-                                        </div>
+                                                <div id={'controlButtons'}>
+                                                    <sp-button onClick={() => changeStep('signsStep')}>К значкам</sp-button>
+                                                    <button className={'doneBtn'} onClick={() => changeStep('common')}>Завершить</button>
+                                                </div>
 
+                                                {/*ВЫБРАННЫЕ АЙТЕМЫ*/}
+                                                <div className={'flexTables'}>
+                                                    {(() => {
+                                                        if(!isEmptySelected(selectedSigns) || !isEmptySelected(selectedGrade) || !isEmptySelected(selectedLeftMedals)){
+                                                            return leftSelectedTemplate();
+                                                        }
+                                                    })()}
+                                                    {(() => {
+                                                        return rightSelectedTemplate();
+                                                    })()}
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 )
                             }
@@ -1266,12 +1314,15 @@ export const ColorPicker = () => {
             {(() => {if(isFormInserted && !isLoading){
                 return (
                     <div id={'afterFormInsertMenu'}>
-                        <div>
-                            <button onClick={() => insertFormToPhotoshop()}>Подставить предыдущую</button>
-                            <button onClick={() => editPrevForm()}>Редактировать предыдущую</button>
-                        </div>
-                        <div>
-                            <sp-button onClick={() => toNewForm()}>Новая форма</sp-button>
+                        <div className={'final-screen'}>
+                            <div className={'flex'}>
+                                <sp-button class="big-blue-button" onClick={() => toNewForm()}>Новая форма</sp-button>
+                            </div>
+
+                            <div className={'flex'}>
+                                <button onClick={() => insertFormToPhotoshop()}>Подставить предыдущую</button>
+                                <button onClick={() => editPrevForm()}>Редактировать предыдущую</button>
+                            </div>
                         </div>
                     </div>
                 )

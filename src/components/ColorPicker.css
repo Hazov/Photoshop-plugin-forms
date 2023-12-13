@@ -64,7 +64,7 @@
 }
 
 #initialInput{
-    width: 100%;
+    width: 60%;
     padding-left: 10px;
     padding-right: 10px;
 }
@@ -84,6 +84,10 @@
     justify-content: space-between;
     padding-left: 15px;
     padding-right: 15px;
+}
+
+.displayNone{
+    display: none;
 }
 
 .doneBtn{
@@ -122,14 +126,7 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 4px;
     cursor: pointer;
-}
-
-.active {
-    border: 4px solid white;
-    border-radius: 7px;
-    padding: 0;
 }
 
 .common-table-title-container{
@@ -139,7 +136,24 @@
 .common-table-title{
     font-size: 21px;
     color: white;
-    padding-right: 10px;
+    padding-right: 7px;
+    padding-left: 7px;
+}
+
+.final-screen{
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    align-items: center;
+    height: 400px;
+}
+
+.big-blue-button{
+    cursor: pointer;
+    width: 200px;
+    height: 60px;
+    border-radius: 30px;
+    font-size: 18px;
 }
 
 .common-table-title-img{
@@ -209,6 +223,10 @@
 }
 .width70{
     width: 70%;
+}
+
+.width60{
+    width: 60%;
 }
 
 .yellowItems{
@@ -347,8 +365,8 @@ sp-menu-item{
     width: 100px;
 }
 
-.img200{
-    width: 200px;
+.img170{
+    width: 170px;
 }
 .select-menu{
     overflow-x: auto;

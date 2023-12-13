@@ -39,6 +39,11 @@ module.exports = {
                 loader: 'file-loader'
             },
             {
+                test: /\.gif$/,
+                exclude: /node_modules/,
+                loader: 'file-loader'
+            },
+            {
                 test: /\.css$/,
                 use: ["style-loader", "css-loader"]
             }
