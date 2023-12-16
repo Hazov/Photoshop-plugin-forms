@@ -79,16 +79,25 @@ export const ColorPicker = () => {
             //Загрузка всех погон
             straps = await fetchService.fetchStraps();
             //Загрузка всех медалей
-            let fetchResolve = await fetchService.fetchItems(await getItemsSuite(DEFAULT_MEDAL_ITEM_NAME, true), itemFiles)
-            setMedals(fetchResolve);
-            setFilteredMedals(fetchResolve)
+            fetchService.fetchItems(await getItemsSuite(DEFAULT_MEDAL_ITEM_NAME, true), itemFiles).then(resolve => {
+                setMedals(resolve);
+                if(!currentForm || currentForm?.config['rightItemsDefault'] === 'medal' || rightItemName === 'medal'){
+                    setFilteredMedals(resolve);
+                }
+            })
             //Загрузка всех планок
-            fetchResolve = await fetchService.fetchItems(await getItemsSuite(DEFAULT_PLANKS_ITEM_NAME, true), itemFiles)
-            setPlanks(fetchResolve);
+            fetchService.fetchItems(await getItemsSuite(DEFAULT_PLANKS_ITEM_NAME, true), itemFiles).then(resolve => {
+                setPlanks(resolve);
+                if((currentForm && currentForm?.config['rightItemsDefault'] === 'plank') || rightItemName === 'plank'){
+                    setFilteredMedals(resolve)
+                }
+            });
             //Загрузка всех значков
-            fetchResolve = await fetchService.fetchItems(await getItemsSuite(DEFAULT_SIGNS_ITEM_NAME), itemFiles)
-            setSigns(fetchResolve);
-            setFilteredSigns(fetchResolve)
+            fetchService.fetchItems(await getItemsSuite(DEFAULT_SIGNS_ITEM_NAME), itemFiles).then(resolve => {
+                setSigns(resolve);
+                setFilteredSigns(resolve)
+            });
+
         }
     }
 
@@ -468,8 +477,8 @@ export const ColorPicker = () => {
         setIsFormInserted(false);
         setMedalsSearch('');
         setSignsSearch('');
-        setFilteredMedals(search(medalsSearch, medals));
-        setFilteredSigns(search(signsSearch, signs));
+        setFilteredMedals(search('', medals));
+        setFilteredSigns(search('', signs));
     }
 
     async function toNewForm(){
@@ -498,6 +507,7 @@ export const ColorPicker = () => {
     async function insertFormToPhotoshop() {
         if(!isLoading){
             try{
+                itemOffsets['signBlockHeight'] = 0;
                 setIsLoading(true)
                 currentForm.config = await fetchService.fetchFormConfig(currentFormFolder);
                 let insertFormResult = await photoshopService.insertImageToPhotoshop(currentForm.file.path);
@@ -517,7 +527,6 @@ export const ColorPicker = () => {
 
                 //Айтемы
                 let signLayerIds = await insertFormItemsToPhotoshop(selectedSigns);
-                currentForm.config['gradeHStartOffset'] = currentForm.config['signHStartOffset'];
                 let gradeLayerIds = await insertFormItemsToPhotoshop(selectedGrade);
                 let medalLayerIds = await insertFormItemsToPhotoshop(selectedMedals);
                 let leftMedalLayerIds = await insertFormItemsToPhotoshop(selectedLeftMedals);
@@ -554,7 +563,9 @@ export const ColorPicker = () => {
 
                 //Раздвигаем относительно друг друга
                 items = applyAlignsItems(items);
-                await alignItems(items);
+                if(items[0].itemName !== 'grade'){
+                    await alignItems(items);
+                }
 
                 //Центрируем весь блок, для ровного сдвига
 
@@ -562,6 +573,13 @@ export const ColorPicker = () => {
 
                 //Весь блок двигаем на грудь
                 await offsetItems(items);
+
+                if(items[0].itemName === 'plank'){
+                    let offset = {};
+                    offset.horizontal = 0;
+                    offset.vertical = -itemOffsets['forPlanksOffset']
+                    await offsetItems(items, offset);
+                }
 
                 //Трансформируем слои (масштаб, угол...)
                 await transformAllItems(items);
@@ -608,12 +626,13 @@ export const ColorPicker = () => {
         }
     }
 
-    async function offsetItems(items){
+    async function offsetItems(items, offset){
         let formConfig = currentForm.config;
-        let offset = {};
-        offset.vertical = formConfig[items[0].itemName + 'VStartOffset'];
-        offset.horizontal = formConfig[items[0].itemName + 'HStartOffset'];
-
+        if(!offset){
+            offset = {};
+            offset.vertical = formConfig[items[0].itemName + 'VStartOffset'];
+            offset.horizontal = formConfig[items[0].itemName + 'HStartOffset'];
+        }
         await photoshopService.setLayers(items.map(item => item.layer.id));
         await photoshopService.moveImage(offset);
     }
@@ -630,32 +649,41 @@ export const ColorPicker = () => {
             }
             let planksNextRowOffset = 0;
             let layerWidth = item.layer.bounds.width;
+            let layerHeight = item.layer.bounds.height;
 
-            let smallRowCenterOffset = 0;
-            if(itemOffsets[item.itemName + 'MaxRowWidth'] !== itemOffsets[item.itemName + 'Row-' + item.rowIdx + '-Width']){
-                smallRowCenterOffset = itemOffsets[item.itemName + 'MaxRowWidth'] / 2 - layerWidth / 2;
-            }
+            let koef = item.itemsInRow > 1 ? item.itemsInRow : 2;
+            let smallRowCenterOffset = (itemOffsets[item.itemName + 'MaxRowWidth'] - itemOffsets[item.itemName + 'Row-' + item.rowIdx + '-Width']) / koef;
+
             if(item.itemName === 'medal'){
-                layerWidth = layerWidth / 2;
+                layerWidth = layerWidth / 2.2;
                 if(smallRowCenterOffset){
-                    smallRowCenterOffset = smallRowCenterOffset / 2;
+                    smallRowCenterOffset = smallRowCenterOffset / 2.2;
                 }
             }
-            if(item.itemName === 'plank'){
-                planksNextRowOffset = itemOffsets['forPlanksOffset'];
-            }
             let sumHeight = 0;
-            for(let i = 0; i < currentRowIdx; i++){
+            for(let i = 0; i <= currentRowIdx; i++){
                 sumHeight += itemOffsets[item.itemName + 'Row-' + i + '-Height'];
             }
             if(item.itemName === 'medal'){
-                sumHeight *= 0.32;
+                sumHeight *= 0.26;
             }
             itemOffsets[item.itemName + 'VBetweenOffset'] = sumHeight;
 
+            if(item.itemName === 'sign'){
+                itemOffsets['signBlockHeight'] = Math.max(sumHeight, itemOffsets['signBlockHeight']);
+            }
 
-            item.offset.vertical = itemOffsets[item.itemName + 'VBetweenOffset'] - planksNextRowOffset + (15 * currentRowIdx);
-            item.offset.horizontal = itemOffsets[item.itemName + 'HBetweenOffset'] + smallRowCenterOffset + (20 * index);
+            if(item.itemName === 'grade' && !isEmptySelected(selectedSigns)){
+                currentForm.config['gradeHStartOffset'] = currentForm.config['signHStartOffset'];
+                currentForm.config['gradeVStartOffset'] = currentForm.config['signVStartOffset']
+                    - ((itemOffsets['signBlockHeight'] / 2) * currentForm.config['signScale'] / 100)
+                    - (layerHeight * currentForm.config['gradeScale'] / 100 / 2) - 20;
+            }
+
+            let hBetween = item.itemName === 'plank' ? 10 : 15;
+            let vBetween = item.itemName === 'plank' ? 15 : 20;
+            item.offset.vertical = itemOffsets[item.itemName + 'VBetweenOffset'] + (hBetween * currentRowIdx) ;
+            item.offset.horizontal = itemOffsets[item.itemName + 'HBetweenOffset'] + smallRowCenterOffset + (vBetween * index);
 
             itemOffsets[item.itemName + 'HBetweenOffset'] += layerWidth;
             index++;
@@ -686,7 +714,7 @@ export const ColorPicker = () => {
             if(index !== 0){
                 itemOffsets[itemType + 'Row-' + item.rowIdx + '-Width'] += 20;
             }
-            itemOffsets[itemType + 'Row-' + item.rowIdx + '-Height'] = Math.max(itemOffsets[itemType + 'Row-' + item.rowIdx + '-Height'], item.height) + (15 * currentRowIdx);
+            itemOffsets[itemType + 'Row-' + item.rowIdx + '-Height'] = Math.max(itemOffsets[itemType + 'Row-' + item.rowIdx + '-Height'], item.height)
 
             if(itemOffsets[itemType + 'MaxRowWidth'] < itemOffsets[itemType + 'Row-' + item.rowIdx + '-Width']){
                 itemOffsets[itemType + 'MaxRowWidth'] = itemOffsets[itemType + 'Row-' + item.rowIdx + '-Width'];
@@ -700,13 +728,15 @@ export const ColorPicker = () => {
             await photoshopService.alignCenterRelativeToDocument()
         }
         let forPlanksOffset = 0;
-        if(items[0].rowIdx !== 0){
-            let lastRowIdx = items[0].rowIdx;
-            for(let i = lastRowIdx; i > 0; i--){
-                forPlanksOffset +=  itemOffsets[itemType + 'Row-' + i + '-Height'] + 15;
+        if(items[0].itemName === 'plank'){
+            if(items[0].rowIdx !== 0){
+                let lastRowIdx = items[0].rowIdx;
+                for(let i = lastRowIdx; i > 0; i--){
+                    forPlanksOffset +=  itemOffsets[itemType + 'Row-' + i + '-Height'] + 10;
+                }
             }
         }
-        itemOffsets['forPlanksOffset'] = forPlanksOffset * currentForm.config['plankScale'] / 100;
+        itemOffsets['forPlanksOffset'] = (forPlanksOffset / 2) * (currentForm.config['plankScale'] / 100);
         return items;
     }
 
