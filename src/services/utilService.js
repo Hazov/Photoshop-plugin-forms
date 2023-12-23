@@ -54,7 +54,7 @@ export class UtilService {
 
     for300dpi(config){
          for(let confItem in config){
-             if(!confItem.includes('Angle')){
+             if(!confItem.includes('Angle') && !confItem.includes('Scale')){
                  if(typeof config[confItem] === 'number'){
                      config[confItem] = config[confItem] / 300 * app.activeDocument.resolution;
                  } else if(typeof config[confItem] !== 'string') {
