@@ -1,23 +1,4 @@
 
-.colorPicker .color {
-    margin: 16px auto;
-    height: 64px;
-    width: 64px;
-    border-radius: 8px;
-    position: relative;
-    border: 1px solid #252525;
-    outline: 1px solid #8C8C8C;
-    outline-radius: 10px;
-}
-
-.colorPicker .color:after {
-    content: ' ';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    border: 1px solid white;
-    border-radius: 8px;
-}
-
 .searchFormsInput{
     height: 35px;
     font-size: 29px;
@@ -126,7 +107,6 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    cursor: pointer;
 }
 
 .common-table-title-container{
@@ -378,86 +358,89 @@ h1,h2{
     text-align: center;
 }
 
-@media (prefers-color-scheme: darkest) {
-    .colorPicker .color {
-        outline-color: #6E6E6E;
-    }
-}
-@media (prefers-color-scheme: light), (prefers-color-scheme: lightest) {
-    .colorPicker .color {
-        outline-color: #FFFFFF;
-    }
-}
-
-
-.colorPicker .filledRange {
-    position: relative;
-}
-
-.colorPicker .sliderWithInput {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-}
-
-.colorPicker .sliderWithInput > *:first-child {
-    flex: 1 1 auto;
-}
-
-.colorPicker .sliderWithInput > *:last-child {
-    margin-left: 8px;
-    flex: 0 0 auto;
-    width: 50px;
-}
-.colorPicker sp-textfield {
-    height: 24px;
-    background-color: transparent;
-}
-
-.colorPicker sp-slider {
+.plugin-switcher-button{
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
+    top: 10px;
+    left: 10px;
+    cursor: pointer;
 }
 
-.colorPicker sp-slider:focus {
-    outline: 1px solid #2680eb;
-    outline-radius: 4px;
+#plugin-part-list{
+    position: absolute;
+    top: 40px;
+    left: 20px;
+    z-index: 10;
+    min-height: 150px;
+    min-width: 250px;
+    background-color: #000c;
+    border: 1px solid black;
+    border-radius: 10px;
+    display: none;
+
+}
+.active-plugin-list{
+    display: block !important;
+}
+.plugin-parts-container{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+}
+.plugin-list-title{
+    color: white;
+    font-size: 17px;
+    padding: 10px 0;
 }
 
-@media (prefers-color-scheme: darkest), (prefers-color-scheme: lightest) {
-    .colorPicker sp-slider:focus {
-        outline-color: #2185E6
-    }
+.template-items{
+    width: 100%;
+    flex-wrap: wrap;
 }
-@media (prefers-color-scheme: dark) {
-    .colorPicker sp-slider:focus {
-        outline-color: #3592EB
-    }
-}
-@media (prefers-color-scheme: light) {
-    .colorPicker sp-slider:focus {
-        outline-color: #0679E0
-    }
+.template-item{
+    width: 20%;
+    padding-top: 15px;
+    cursor: pointer;
 }
 
-.colorPicker .gradient {
-    margin-top: 21px;
-    height: 14px;
-    margin-bottom: 28px;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
-    margin-left: 8px; 
-    margin-right: 8px;
+.template-name{
+    display: block;
+    color: white;
+    font-size: 11px;
+    text-align: center;
+    width: 80px;
+}
+.template-sizes{
+    display: block;
+    color: #c8c8c8;
+    font-size: 9px;
+    text-align: center;
+    width: 80px;
+}
+center{
+    text-align: center;
 }
 
-.colorPicker .gradient.red {
-    background: linear-gradient(to right, #000000, #FF0000);
+.formTypeImg{
+    cursor: pointer;
 }
-.colorPicker .gradient.green {
-    background: linear-gradient(to right, #000000, #00FF00);
+
+.form-types-container > *{
+    margin-left: 10px;
+    border: 1px solid dimgray;
 }
-.colorPicker .gradient.blue {
-    background: linear-gradient(to right, #000000, #0000FF);
+
+.form-types-container{
+    position: absolute;
+    bottom: 50px;
+    left: 140px;
+}
+
+#toSignsBlock{
+    cursor: pointer;
+}
+
+#toMedalsBlock{
+    cursor: pointer;
 }

@@ -24,6 +24,14 @@ export class FileService {
         let entry = await storage.localFileSystem.getEntryWithUrl("file:" + url);
         return storage.localFileSystem.createSessionToken(entry);
     }
+
+    async getEntryByPath(filePath){
+         let folderFileSeparatorIndex = filePath.lastIndexOf('/');
+         let folderPath = filePath.substring(0, folderFileSeparatorIndex);
+         let fileName = filePath.substring(folderFileSeparatorIndex + 1, filePath.length);
+         let folder = await this.getFolderByPath(folderPath);
+         return await folder.getEntry(fileName);
+    }
      async readFileObj(folder, fileName){
         let file = await folder.getEntry(fileName);
         let bytes = await file.read({format: formats.binary});

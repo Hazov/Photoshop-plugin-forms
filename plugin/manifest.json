@@ -1,6 +1,6 @@
 {
   "id": "Test-iz3awm",
-  "name": "obrabotka",
+  "name": "Белая ворона",
   "version": "1.0.0",
   "main": "index.html",
   "manifestVersion": 5,
@@ -47,7 +47,7 @@
       "type": "panel",
       "id": "demos",
       "label": {
-        "default": "Обработка фото"
+        "default": "Белая ворона"
       },
       "minimumSize": {
         "width": 600,

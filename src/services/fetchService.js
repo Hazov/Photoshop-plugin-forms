@@ -48,6 +48,19 @@ export class FetchService {
          return category;
     }
 
+    async fetchFormTypes(){
+        let formTypes = [];
+        let strapsFolder = await fileService.getFolderByPath('allFiles/form-types');
+        for(let entry of await strapsFolder.getEntries()){
+            let formType = {};
+            formType.file = await fileService.readFileObj(strapsFolder, entry.name);
+            formType.name = utilService.withoutExtensionName(formType.file);
+            formTypes.push(formType);
+        }
+        return formTypes;
+
+    }
+
      async fetchItems(itemSet, itemFiles){
         let itemName = itemSet.itemName;
         let itemFolder = itemSet.itemFolder;

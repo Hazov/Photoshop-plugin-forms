@@ -9,6 +9,11 @@ export class PhotoshopService {
         return await photoshop.core.executeAsModal(pluginFunc);
     }
 
+    async open(file) {
+        await this.execute(() => app.open(file));
+    }
+
+
     async insertImageToPhotoshop(filePath) {
         let insertDescriptor = [
             {
@@ -316,7 +321,24 @@ export class PhotoshopService {
 
     }
 
-    async createTextLayer(text) {
+    async createTextLayer(text, color) {
+        let rgbColor;
+        if(color){
+            rgbColor = {
+                _obj: "RGBColor",
+                red: color.red,
+                grain: color.grain,
+                blue: color.blue
+            }
+        } else{
+            rgbColor = {
+                _obj: "RGBColor",
+                red: 232.00000137090683,
+                grain: 178.74707490205765,
+                blue: 50.95330886542797
+            }
+        }
+
         let textLayerDescriptor =
             [
                 {
@@ -534,12 +556,7 @@ export class PhotoshopService {
                                         _value: "roman"
                                     },
                                     noBreak: false,
-                                    color: {
-                                        _obj: "RGBColor",
-                                        red: 232.00000137090683,
-                                        grain: 178.74707490205765,
-                                        blue: 50.95330886542797
-                                    },
+                                    color: rgbColor,
                                     strokeColor: {
                                         _obj: "RGBColor",
                                         red: 0,
@@ -557,6 +574,10 @@ export class PhotoshopService {
                 }
             ];
         return await this.execute(() => photoshop.action.batchPlay(textLayerDescriptor, {}));
+    }
+
+    async createNewLayer(sizes) {
+        
     }
 }
 
