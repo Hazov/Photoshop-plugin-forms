@@ -512,11 +512,15 @@ export const VoronaPlugin = () => {
         setIsFormInserted(false)
         setCurrentForm(null);
         currentFormFolder = ['allFiles', 'forms'];
-        nextCategory(currentFormTypeName);
-        selectedMedals.flatMap(row => row).filter(item => item).forEach(item => medals.push(item));
-        selectedLeftMedals.flatMap(row => row).filter(item => item).forEach(item => medals.push(item));
-        selectedRightMedals.flatMap(row => row).filter(item => item).forEach(item => medals.push(item));
+        await nextCategory(currentFormTypeName);
+        selectedMedals.flatMap(row => row).filter(item => item && item.itemName === 'medal').forEach(item => medals.push(item));
+        selectedLeftMedals.flatMap(row => row).filter(item => item && item.itemName === 'medal').forEach(item => medals.push(item));
+        selectedRightMedals.flatMap(row => row).filter(item => item && item.itemName === 'medal').forEach(item => medals.push(item));
         setMedals(medals);
+        selectedMedals.flatMap(row => row).filter(item => item && item.itemName === 'plank').forEach(item => planks.push(item));
+        selectedLeftMedals.flatMap(row => row).filter(item => item && item.itemName === 'plank').forEach(item => planks.push(item));
+        selectedRightMedals.flatMap(row => row).filter(item => item && item.itemName === 'plank').forEach(item => planks.push(item));
+        setPlanks(planks);
         selectedGrade.flatMap(row => row).filter(item => item).forEach(item => signs.push(item));
         selectedSigns.flatMap(row => row).filter(item => item).forEach(item => signs.push(item));
         selectedSigns = []
