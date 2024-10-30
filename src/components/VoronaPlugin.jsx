@@ -36,7 +36,6 @@ let medalRowsCount = 3;
 let medalsInRow = 4;
 let signRowsCount = 2;
 let signsInRow = 3;
-let currentFormTypeName = 'Военная';
 let currentFormFolder = ['allFiles','forms', 'Военная'];
 let itemFiles = [];
 let isInit = false;
@@ -92,7 +91,7 @@ export const VoronaPlugin = () => {
         if(!isInit) {
             isInit = true;
             allFormTypes = await fetchService.fetchFormTypes();
-            setFormTypes(allFormTypes.filter(ft => ft.name !== currentFormTypeName));
+            setFormTypes(allFormTypes.filter(ft => ft.name !== currentFormType));
             //Загрузка начальной категории
             fetchService.fetchFormCategory(await fileService.getFolderByPath(currentFormFolder)).then(resolve => setFormCategory(resolve));
             //Загрузка ячеек для выбора
@@ -178,7 +177,8 @@ export const VoronaPlugin = () => {
     function getStrap(form){
         let strapNumber = form.name.split('.')[0];
         let strap = straps.find(strap => strap.name.split('.')[0] === strapNumber);
-        return strap.file.file64;
+
+        return strap ? strap.file.file64 : "";
     }
 
     function showFormPreview(form){
@@ -508,7 +508,7 @@ export const VoronaPlugin = () => {
         setIsFormInserted(false)
         setCurrentForm(null);
         currentFormFolder = ['allFiles', 'forms'];
-        await nextCategory(currentFormTypeName);
+        await nextCategory(currentFormType);
         selectedMedals.flatMap(row => row).filter(item => item && item.itemName === 'medal').forEach(item => medals.unshift(item));
         selectedLeftMedals.flatMap(row => row).filter(item => item && item.itemName === 'medal').forEach(item => medals.unshift(item));
         selectedRightMedals.flatMap(row => row).filter(item => item && item.itemName === 'medal').forEach(item => medals.unshift(item));
@@ -528,7 +528,6 @@ export const VoronaPlugin = () => {
         for (let itemType of itemTypesList) {
             await updateSelectedCells(await getItemsSuite(itemType));
         }
-
     }
 
     async function insertFormToPhotoshop() {
