@@ -8,14 +8,14 @@ const formats = storage.formats
 const util = new UtilService();
 export class FileService {
      async getFolderByPath(path){
-        let asArrayPath;
+        let pathArray;
         if(path.constructor === Array){
-            asArrayPath = path;
+            pathArray = path;
         } else {
-            asArrayPath = path.split('/');
+            pathArray = path.split('/');
         }
         let folder = await storage.localFileSystem.getPluginFolder();
-        for(let p of asArrayPath){
+        for(let p of pathArray){
             folder = await folder.getEntry(p);
         }
         return folder;
