@@ -1,8 +1,8 @@
 export class TextGaps {
     ofFileName
     ofInputField
-    constructor() {
-        this.ofFileName = [];
-        this.ofInputField = [];
+    constructor(ofInputField, ofFileName) {
+        this.ofInputField = ofInputField;
+        this.ofFileName = ofFileName;
     }
 }

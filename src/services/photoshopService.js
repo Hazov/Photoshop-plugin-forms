@@ -2,6 +2,7 @@ import {FileService} from "./fileService";
 
 const photoshop = require('photoshop');
 const app = photoshop.app;
+const constants = photoshop.constants;
 const fileService = new FileService();
 
 export class PhotoshopService {
@@ -179,8 +180,8 @@ export class PhotoshopService {
         await this.execute(() => photoshop.action.batchPlay(transformDescriptor, {}));
     }
 
-    async setLayers(layerIds) {
-        let layers = app.activeDocument.layers.filter(layer => layerIds.includes(layer.id));
+    async selectLayersByIds(layerIds) {
+        let layers = this.getAllLayers(app.activeDocument.layers).filter(layer => layerIds.includes(layer.id));
         let target = layers.map(layer => {
             return {_ref: 'layer', _name: layer.name}
         })
@@ -200,7 +201,7 @@ export class PhotoshopService {
     }
 
     //Select имеется в виду выделение муравьями
-    async antSelectAll(selection = 'allEnum'){
+    async antSelectAll(selection = 'allEnum') {
         const selectAlDescriptor =
             [
                 {
@@ -223,11 +224,11 @@ export class PhotoshopService {
         await this.execute(() => photoshop.action.batchPlay(selectAlDescriptor, {}));
     }
 
-    async deselectAll(){
+    async deselectAll() {
         await this.antSelectAll('none');
     }
 
-    async alignLayer(direction){
+    async alignLayer(direction) {
         const alignDescriptor =
             [
                 {
@@ -253,8 +254,8 @@ export class PhotoshopService {
         await this.execute(() => photoshop.action.batchPlay(alignDescriptor, {}));
     }
 
-    async groupLayers(layerIds){
-        await this.setLayers(layerIds);
+    async groupLayers(layerIds) {
+        await this.selectLayersByIds(layerIds);
         layerIds.sort((id1, id2) => id1 - id2);
         let groupLayersDescriptor =
             [
@@ -285,7 +286,7 @@ export class PhotoshopService {
         return await this.execute(() => photoshop.action.batchPlay(groupLayersDescriptor, {}));
     }
 
-    async ungroupLayers(){
+    async ungroupLayers() {
         const unGroupLayersDescriptor =
             [
                 {
@@ -305,15 +306,16 @@ export class PhotoshopService {
         return await this.execute(() => photoshop.action.batchPlay(unGroupLayersDescriptor, {}));
     }
 
-    async alignCenterRelativeToDocument(){
+    async alignCenterRelativeToDocument() {
         await this.antSelectAll();
         await this.alignLayer("ADSCentersH");
         await this.alignLayer("ADSCentersV");
         await this.deselectAll();
     }
-    async alignTopLeftLayers(layerIds){
+
+    async alignTopLeftLayers(layerIds) {
         //Сначала относительно документа
-        await this.setLayers(layerIds);
+        await this.selectLayersByIds(layerIds);
         await this.alignCenterRelativeToDocument();
         //Потом относительно друг друга
         await this.alignLayer("ADSLefts");
@@ -323,14 +325,14 @@ export class PhotoshopService {
 
     async createTextLayer(text, color) {
         let rgbColor;
-        if(color){
+        if (color) {
             rgbColor = {
                 _obj: "RGBColor",
                 red: color.red,
                 grain: color.grain,
                 blue: color.blue
             }
-        } else{
+        } else {
             rgbColor = {
                 _obj: "RGBColor",
                 red: 232.00000137090683,
@@ -577,7 +579,233 @@ export class PhotoshopService {
     }
 
     async createNewLayer(sizes) {
-        
+
+    }
+
+
+
+    // Метод установки границ слоя
+    async adjustLayerBounds(layer, bounds) {
+        await this.execute( () => {
+            layer.bounds = bounds;
+        });
+    }
+
+// Метод импорта изображения на слой
+    async pasteImageOnLayer(layer, path) {
+        await this.execute( () => {
+            layer.importFromFile(path);
+        });
+    }
+
+
+// Метод централизации текста по вертикали
+    async centerTextVertically(layer) {
+        await this.execute( () => {
+            let containerHeight = layer.bounds.height;
+            let textHeight = layer.measurements.height;
+            let topOffset = Math.round((containerHeight - textHeight) / 2);
+            layer.top += topOffset;
+        });
+    }
+
+
+
+
+// Метод клонирования текущего документа
+    async cloneCurrentPsd() {
+        try {
+            let activeDocument = app.activeDocument;
+            if (!activeDocument) {
+                throw new Error("Невозможно найти активный документ.");
+            }
+            await this.execute( () => {
+                return activeDocument.duplicate()
+            });
+        } catch (err) {
+            console.error(err.message);
+        }
+    }
+
+// Метод подгонки текста в контейнер
+    async fitTextInContainer(layer, content) {
+        await this.selectLayersByIds([layer.id])
+        await this.replaceTextContent(content)
+        // this.centerTextVertically(layer);
+
+    }
+
+    async collapseAllGroups(){
+        let collapseGroupsDescriptor = [
+                {
+                    "_obj": "collapseAllGroupsEvent",
+                    "_isCommand": true,
+                    "_options": {
+                        "dialogOptions": "dontDisplay"
+                    }
+                }
+            ]
+        await this.execute(() => photoshop.action.batchPlay(collapseGroupsDescriptor, {}));
+    }
+
+    async replaceTextContent(newText) {
+        let textReplacerDescriptor = [
+            {
+                "_obj": "set",
+                "_target": [
+                    {
+                        "_ref": "textLayer",
+                        "_enum": "ordinal",
+                        "_value": "targetEnum"
+                    }
+                ],
+                "to": {
+                    "_obj": "textLayer",
+                    "textKey": newText,
+                },
+            }
+        ];
+        await this.execute(() => photoshop.action.batchPlay(textReplacerDescriptor, {}));
+    }
+
+    async createGroup(name) {
+        return await this.execute( () => {
+            const doc = app.activeDocument;
+            return doc.createLayerGroup({ name });
+        });
+    }
+
+    // Метод клонирования слоя
+    async  cloneLayers(layers, parent) {
+        return await this.execute(  async () => {
+            let copied = []
+            for(let layer of layers) {
+                let newLayer = await layer.duplicate();
+                if(parent){
+                    await newLayer.move(parent, constants.ElementPlacement.PLACEINSIDE)
+                }
+                copied.push(newLayer)
+            }
+            return copied
+        })
+    }
+
+// Метод клонирования слоя
+    async  cloneLayer(layer, parent) {
+        return layer.duplicate(parent);
+    }
+
+// Метод клонирования слоя изображения
+    async  cloneImageLayer(layer, parent) {
+        return await this.execute( () => {
+            return layer.duplicate(parent);
+        })
+
+    }
+
+
+    // Модифицированная функция для добавления изображения на слой
+    async  placeImage(containerLayer, imgLayer) {
+        return await this.execute( () => {
+            let imgRect = containerLayer.bounds; // Границы контейнера
+
+            // // Вычислим необходимую степень масштабирования
+            // let rotationAngle = this.shouldRotate(imgRect, imgLayer.bounds) ? 90 : 0;
+            // this.rotateLayer(containerLayer, rotationAngle); // Применим поворот, если нужен
+
+            // Масштабируем изображение относительно ограничений контейнера
+            this.scaleImageProportionally(imgLayer, imgRect);
+
+            // Переместим изображение в позицию контейнера
+            this.positionLayerInsideContainer(imgLayer, imgRect);
+
+            // Удалим контейнер-глушак, оставив только само изображение
+            this.removeLayer(containerLayer);
+        });
+    }
+
+// Метод для прямого импорта изображения в проект
+    async  importFullImage(imagePath) {
+        return await this.execute( () => {
+            return app.activeDocument.importFromFile(imagePath);
+        });
+    }
+
+// Метод для правильного позиционирования изображения внутри контейнера
+    async  positionLayerInsideContainer(layer, containerBounds) {
+        await this.execute( () => {
+            layer.left = containerBounds.x;
+            layer.top = containerBounds.y;
+        });
+    }
+
+// Метод для масштабирования изображения
+    async  scaleImageProportionally(layer, targetBounds) {
+        await this.execute( () => {
+            let layerWidth = layer.bounds.width;
+            let layerHeight = layer.bounds.height;
+
+            let ratioX = targetBounds.width / layerWidth;
+            let ratioY = targetBounds.height / layerHeight;
+            let scalingFactor = Math.min(ratioX, ratioY); // Коэффициент масштабирования
+
+            this.resizeLayer(layer, scalingFactor);
+        });
+    }
+
+// Вспомогательная функция для изменения размера слоя
+    async  resizeLayer(layer, factor) {
+        await this.execute( () => {
+            layer.scale(factor * 100, factor * 100);
+        });
+    }
+
+// Функция для проверки необходимости разворота изображения
+     shouldRotate(targetBounds, layerBounds) {
+        return targetBounds.width * layerBounds.height !== targetBounds.height * layerBounds.width;
+    }
+
+// Функция для поворота слоя
+    async  rotateLayer(layer, angle) {
+        await this.execute( () => {
+            layer.rotate(angle);
+        });
+    }
+
+// Функция для удаления слоя
+    async  removeLayer(layer) {
+        await this.execute( () => {
+            layer.delete();
+        });
+    }
+
+    async switchDocument(oldDocumentId) {
+        await this.execute( () => {
+            app.activeDocument = app.documents.find(doc => doc.id === oldDocumentId)
+        });
+    }
+
+
+    getAllLayers(layersArray) {
+        const flatLayers = [];
+
+        function recursiveGetLayers(layers) {
+            for (let i = 0; i < layers.length; i++) {
+                const layer = layers[i];
+
+                if (layer !== null) {
+                    flatLayers.push(layer);
+
+                    if (layer.layers && layer.layers.length > 0) {
+                        recursiveGetLayers(layer.layers);
+                    }
+                }
+            }
+        }
+
+        recursiveGetLayers(layersArray);
+
+        return flatLayers;
     }
 }
 

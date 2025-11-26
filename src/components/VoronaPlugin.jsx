@@ -16,9 +16,7 @@ import clearImg from '/src/images/clear.png'
 import loadingImg from '/src/images/loading.gif'
 import pluginSwitcherImg from '/src/images/pluginSwitcher.png'
 
-import {DuplicatedGap} from "../entities/filler/DuplicatedGap";
-import {TextGaps} from "../entities/filler/TextGaps";
-import {ValidateToFillResponse} from "../entities/filler/ValidateToFillResponse";
+import {FillerApp} from "./FillerApp";
 
 const photoshop = require('photoshop');
 const app = photoshop.app;
@@ -47,7 +45,11 @@ let allFormTypes = [];
 let itemOffsets = {};
 
 let itemTypesList = ['medal', 'plank', 'sign', 'grade', 'leftMedal', 'rightMedal'];
-
+let pluginParts = [
+        {id: "formPluginPart", name: "Подстановка формы"},
+        {id: "creationPluginPart", name: "Шаблоны"},
+        {id: "fillerPluginPart", name: "Заполнитель"}
+    ]
 
 let templates = templateService.getDefaultTemplates();
 
@@ -121,7 +123,6 @@ export const VoronaPlugin = () => {
                 setSigns(resolve);
                 setFilteredSigns(resolve)
             });
-
         }
     }
 
@@ -560,7 +561,7 @@ export const VoronaPlugin = () => {
                 let leftMedalLayerIds = await insertFormItemsToPhotoshop(selectedLeftMedals);
                 let rightMedalLayerIds = await insertFormItemsToPhotoshop(selectedRightMedals);
 
-                await photoshopService.setLayers([ formLayer.id, ...medalLayerIds, ...signLayerIds, ...textLayerResult, ...gradeLayerIds, ...leftMedalLayerIds, ...rightMedalLayerIds]);
+                await photoshopService.selectLayersByIds([ formLayer.id, ...medalLayerIds, ...signLayerIds, ...textLayerResult, ...gradeLayerIds, ...leftMedalLayerIds, ...rightMedalLayerIds]);
                 let resizePercentValue = getResizeFormValue(formLayer);
                 await photoshopService.resizeImage(resizePercentValue);
             } catch (e) {
@@ -649,7 +650,7 @@ export const VoronaPlugin = () => {
 
     async function alignItems(items){
         for(let item of items){
-            await photoshopService.setLayers([item.layer.id]);
+            await photoshopService.selectLayersByIds([item.layer.id]);
             await photoshopService.moveImage(item.offset);
         }
     }
@@ -661,7 +662,7 @@ export const VoronaPlugin = () => {
             offset.vertical = formConfig[items[0].itemName + 'VStartOffset'];
             offset.horizontal = formConfig[items[0].itemName + 'HStartOffset'];
         }
-        await photoshopService.setLayers(items.map(item => item.layer.id));
+        await photoshopService.selectLayersByIds(items.map(item => item.layer.id));
         await photoshopService.moveImage(offset);
     }
 
@@ -805,7 +806,7 @@ export const VoronaPlugin = () => {
                 let layerIds = itemTypeLayerMap.get(itemType);
                 let options = getItemTransformOptions(itemType)
                 if(options){
-                    await photoshopService.setLayers(layerIds);
+                    await photoshopService.selectLayersByIds(layerIds);
                     await photoshopService.transformLayer(options);
                 }
             }
@@ -901,7 +902,9 @@ export const VoronaPlugin = () => {
     }
     function hidePluginPartList(){
         let el = document.getElementById('plugin-part-list')
-        el.classList.remove('active-plugin-list');
+        if(el && el.classList){
+            el.classList.remove('active-plugin-list');
+        }
     }
 
     async function createTemplate(template){
@@ -932,151 +935,6 @@ export const VoronaPlugin = () => {
 
 
 
-    //Для FillerUI region start
-
-
-
-
-
-
-    //psModel
-    let textGaps = [];
-    let imageGap;
-    //formModel
-    let textsToFill = new TextGaps()
-    let imagesToFill = [];
-    let isOneTextOfFileName = false;
-    //model
-    let validateToFillResponse = new ValidateToFillResponse(false, '')
-    let isFilled = false;
-    let isScanned = undefined;
-    let createdGroups = [];
-    let imagesFolder;
-    let clonedGaps = [];
-
-
-
-
-    //Сканирует текстовые объекты и объект для подстановки изображения в текущем PSD
-    function scanToFill() {
-        // createCopyCurrentPSDWOW();
-        // try{
-        //     let currentPSD = getCurrentPSDWOW;
-        //     let textObjects = findtextGapsWOW(currentPSD);
-        //     let imageObject = findImageGapWOW(currentPSD);
-        // } catch (e){
-        //     return false;
-        // }
-        return true;
-    }
-
-    //Выбрать папку и достать оттуда изображения отсортированные в порядке
-    function browseToFillFolder() {
-        // imagesFolder =  fetchService.getImagesFolderWOW(imagesFolder)
-    }
-
-
-    function validateToFill() {
-        // let validateTexts = textGaps.length && textsToFill.flat().length && textGaps.length % textsToFill.flat().length === 0;
-        // let validateImages = !!imageGap && imagesToFill.length > 0;
-        // let validateTextsAndImages = (validateTexts || validateImages) && textGaps.length % imagesToFill === 0;
-        // let fullValidate = validateTexts && validateImages && validateTextsAndImages;
-        // return ValidateToFillResponseWOW(fullValidate, getMsgForFillValidate(validateTexts, validateImages, validateTextsAndImages))
-    }
-
-    function fillTexts(gap) {
-        // let ofFileIterator = textsToFill.ofFileName.iterator()
-        // let ofInputIterator = textsToFill.ofFileName.iterator()
-        //
-        // if (j === 0 && isOneTextOfFileName) {
-        //     photoshopService.fillTextGap(gap, ofFileIterator.next())
-        // } else {
-        //     photoshopService.fillTextGap(gap, ofInputIterator.next())
-        // }
-
-    }
-
-    function fillImages(gap) {
-        // photoshopService.fillImageGap(gap, image)
-    }
-
-    function initImages(){
-        // imagesToFill = fetchService.getImagesInFolder(imagesFolder)
-        // sort(imagesToFill)
-    }
-
-    function initTexts(){
-        // if(isOneTextOfFileName){
-        //     imagesToFill.forEach(image => {
-        //         textsToFill.ofFileName.push(image.fileName)
-        //     })
-        // }
-        // let textsToFillField = document.getElementById('textsToFillField')
-        // textsToFillField.forEach(field => {
-        //     let rawText = field.getText()
-        //     rawText.split('\n').forEach(line => {
-        //         textsToFill.push(line.trim())
-        //     })
-        // })
-    }
-
-    function prepareModelToFill(){
-        // initImages();
-        // initTexts();
-    }
-
-    function getGroupsCount(){
-        // if(isOneTextOfFileName || textsToFill.ofInputField.length) {
-        //     return imagesToFill.length;
-        // }
-        // return textsToFill.ofInputField.length / textGaps.length
-    }
-
-
-    function cloneTextGap(){
-        // let copiedTextGaps = [];
-        // if(textGaps.length){
-        //     textGaps.forEach((textGap, j) => {
-        //         copiedTextGaps.push(photoshopService.cloneLayer(textGap));
-        //     })
-        // }
-        // return copiedTextGaps;
-    }
-
-    function cloneImageGap(){
-        // return photoshopService.cloneLayer(imageGap);
-    }
-
-
-    function preparePsToFill(){
-        // let groupsCount = getGroupsCount()
-        // clonedGaps = [];
-        // for (let i = 1; i <= groupsCount; i++) {
-        //     clonedGaps.push(new DuplicatedGap('vgroup' + i, cloneTextGap(), cloneImageGap()));
-        // }
-    }
-
-    function fill(){
-        // clonedGaps.forEach(gap => {
-        //     fillTexts(gap);
-        //     fillImages(gap);
-        // })
-
-    }
-
-    function toFill() {
-        // prepareModelToFill();
-        // preparePsToFill();
-        // fill();
-
-    }
-
-    function saveEachFilled() {
-
-    }
-
-
-    //Для FillerUI region end
 
 
 
@@ -1652,72 +1510,6 @@ export const VoronaPlugin = () => {
         )
     }
 
-
-
-    function fillerUi() {
-        return (
-            <div className={'flex-column'}>
-                <h1>Заполнитель</h1>
-                <div className={'template-items flex'}>
-                    {/*СКАНИРОВАНИЕ*/}
-                    <div>
-                        <button onClick={() => scanToFill()}>Сканировать</button>
-                        <div>
-                            {(() => {
-                                if(isScanned){
-                                    return (
-                                        <span>Было найдено: {} текстовых полей и {} </span>
-                                    )
-                                } else {
-                                    return (
-                                        <span>Ошибка: убедитесь, что у вас открыт файл PSD.</span>
-                                    )
-                                }
-                            })()}
-                        </div>
-                    </div>
-
-                    {/*ДАННЫЕ ДЛЯ ЗАПОЛНЕНИЯ*/}
-                    <div>
-                        {(() => {
-                            if(textGaps.length){
-                                return (
-                                    <sp-textarea type="text" id="searchFormsInput"></sp-textarea>
-                                )
-                            }
-                        })()}
-                        {(() => {
-                            if(!!imageGap){
-                                return (
-                                    <button onClick={() => browseToFillFolder()}>Папка для заполнения</button>
-                                )
-                            }
-                        })()}
-                    </div>
-                    <div>
-                        {(() => {
-                            if(validateToFill()){
-                                return (
-                                    <button onClick={() => toFill()}>Заполнить</button>
-                                )
-                            }
-                        })()}
-                        {(() => {
-                            if(isFilled){
-                                return (
-                                    <button onClick={() => saveEachFilled()}>Сохранить каждый отдельно</button>
-                                )
-                            }
-                        })()}
-
-                    </div>
-
-                </div>
-            </div>
-        )
-    }
-
-
     return (
         <div className={'plugin-body'}>
             <div onClick={() => showPluginPartList()} className={'plugin-switcher-button'}>
@@ -1726,9 +1518,11 @@ export const VoronaPlugin = () => {
             <div id="plugin-part-list">
                 <div className={'plugin-parts-container'}>
                     <span className={'plugin-list-title'}>Операции</span>
-                    <button onClick={() => setPluginPart('formPluginPart')}>Подстановка формы</button>
-                    <button onClick={() => setPluginPart('creationPluginPart')}>Шаблоны</button>
-                    <button onClick={() => setPluginPart('fillerPluginPart')}>Заполнитель</button>
+                    {pluginParts.filter(pp => pp.id !== pluginPart).map((pp) => {
+                        return (
+                            <button onClick={() => setPluginPart(pp.id)} key={pp.id}>{pp.name} </button>
+                        )
+                    })}
                 </div>
             </div>
 
@@ -1738,11 +1532,10 @@ export const VoronaPlugin = () => {
                 } else if (pluginPart === 'creationPluginPart'){
                     return creationUi();
                 } else if (pluginPart === 'fillerPluginPart') {
-                    return fillerUi();
+                    return (<FillerApp />)
                 }
             })()}
         </div>
 
     )
 }
-

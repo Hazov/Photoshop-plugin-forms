@@ -1,0 +1,173 @@
+.content {
+    width: 100%;
+    min-height: 100%;
+    text-align: center;
+}
+
+.flex-row {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+}
+
+.flex-row-start {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.scanButton {
+    margin: 0 65px;
+    padding: 0 25px;
+}
+
+.found-status {
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.checkbox-label {
+    color: white;
+}
+
+.fillers {
+    display: flex;
+    justify-content: space-around;
+}
+
+.filler {
+    display: flex;
+    flex-direction: column;
+    height: 365px;
+}
+
+.rows-input {
+    height: 100%;
+    width: 100%;
+    overflow-y: auto;
+}
+
+.file-list {
+    overflow: auto;
+    height: 100%;
+    width: 100%;
+    margin-top: 0;
+    border-radius: 10px;
+    background-color: #252525;
+}
+
+.select-images-btn {
+    margin-bottom: 0;
+    height: 45px;
+}
+
+.text-filler {
+    width: 390px;
+}
+
+.filler-header {
+    color: white;
+    padding: 10px 0;
+    font-size: 12px;
+}
+
+.with-space {
+    padding-left: 10px;
+}
+.filler-infos {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 10px;
+}
+
+.filler-info-container {
+    padding: 10px 0;
+}
+
+.filler-info {
+    font-size: 14px;
+    color: white;
+}
+
+.filler-warn-info{
+    font-size: 14px;
+    color: brown;
+}
+
+.link {
+    padding-right: 10px;
+    color: lightskyblue;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.footer {
+    display: flex;
+    align-items: center;
+    justify-content: end;
+}
+
+hr {
+    height: 1px;
+    background-color: #434343;
+}
+
+.menu-item{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.select-menu{
+    overflow: auto;
+    height: 250px;
+    margin-top: 15px;
+    border-radius: 10px;
+    background-color: #252525;
+    width: 100%;
+}
+
+.radio-column-group{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+
+.number-field{
+    max-width: 50px;
+    max-height: 28px;
+    margin-right: 10px;
+}
+
+.middle-number-field {
+    margin-left: 50px;
+}
+
+.radio-label {
+    white-space: nowrap;
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.separate-menu-item {
+    padding: 0
+}
+
+.separate-area {
+    width: 100%;
+}
+.separate-card {
+    margin-top: 25px;
+ }

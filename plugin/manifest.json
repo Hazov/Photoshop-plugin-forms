@@ -16,12 +16,23 @@
     "launchProcess": {
       "schemes": [
         "http",
-        "https"
+        "https",
+        "file",
+        ""
       ],
       "extensions": [
+        ".exe",
+        ".app",
         ".svg",
-        ".png"
+        ".png",
+        ".jpg",
+        ".jpeg",
+        "",
+        "*"
       ]
+    },
+    "network": {
+      "domains": "all"
     },
     "webview": {
       "allow": "yes",
@@ -29,7 +40,10 @@
         "https://*.adobe.com",
         "https://*.google.com"
       ]
-    }
+    },
+    "restrictedCapabilities": [
+      "broadFileSystemAccess"
+    ]
   },
   "entrypoints": [
     {
