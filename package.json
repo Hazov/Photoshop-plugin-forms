@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@spectrum-web-components/dropdown": "^0.10.1",
+    "@spectrum-web-components/picker": "^1.10.0",
     "@spectrum-web-components/search": "^0.38.0",
     "babel-preset-es2015": "^6.24.1",
     "mobx-react-lite": "^4.0.4",

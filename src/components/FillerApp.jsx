@@ -13,7 +13,6 @@ const app = photoshop.app;
 const action = photoshop.action;
 const uxp = require('uxp')
 const storage = uxp.storage;
-const photoshopService = new PhotoshopService();
 let isInit = false;
 export const FillerApp = () => {
 
@@ -24,24 +23,28 @@ export const FillerApp = () => {
     let [oldTextGap, setOldTextGap] = useState(0);
     //formModel
     let [textsToFill, setTextsToFill] = useState(new TextGaps([],[]));
+    let [textsToFillCopy, setTextsToFillCopy] = useState(new TextGaps([],[]));
     let [imagesToFill, setImagesToFill] = useState([]);
     let [isOneTextOfFileName, setIsOneTextOfFileName] = useState(false);
     let [statusInfo, setStatusInfo] = useState('Просканируйте документ');
     let [rowsCount, setRowsCount] = useState(0);
     let [warnEmptyRowsCount, setWarnEmptyRowsCount] = useState(0);
-    let [rowTextToFill, setRowTextToFill] = useState('');
+    let [rawTextToFill, setRawTextToFill] = useState();
     let [resultCount, setResultCount] = useState(0);
     let [notEnoughCount, setNotEnoughCount] = useState(0);
     let [rowsDf, setRowsDf] = useState(0);
     let [imagesDf, setImagesDf] = useState(0);
     let [fillerPartUi, setFillerPartUi] = useState("main");
     //model
-    let [selectedValue, setSelectedValue] = useState("without");
+    let [selectedSeparateMode, setSelectedSeparateMode] = useState("without");
     let [validateToFillResponse, setValidateToFillResponse] = useState(new ValidateToFillResponse(false, ''));
     let [isFilled, setIsFilled] = useState(false);
     let [isScanned, setIsScanned] = useState(undefined);
     let [createdGroups, setCreatedGroups] = useState([]);
     let [imagesFolder, setImagesFolder] = useState(undefined);
+
+
+
 
     init().then(ignore => {});
     async function init() {
@@ -52,8 +55,12 @@ export const FillerApp = () => {
         }
     }
 
+    useEffect( () =>  notEnoughReload, [rowsCount, imagesToFill, isOneTextOfFileName, textGaps.length, !!imageGap]);
+    useEffect(() => dfg, [rawTextToFill]);
+
     async function photoshopListener(){
         await scanToFill()
+        await notEnoughReload()
         if(!!imageGap !== oldIg || textGaps.length !== oldTextGap){
             setOldIg(!!imageGap)
             setOldTextGap(textGaps.length)
@@ -61,10 +68,13 @@ export const FillerApp = () => {
         }
     }
 
+    async function dfg (){
+        await calculateRowsCount(rawTextToFill)
+        await validateToFill()
+    }
 
 
-
-    useEffect(() => {
+    function notEnoughReload(){
         let rCount = isOneTextOfFileName ? rowsCount + imagesToFill.length : rowsCount
         let rDf = !rCount || !textGaps.length ? 1 : rCount / textGaps.length;
         let iDf = !imagesToFill.length || !imageGap ? 1 : imagesToFill.length;
@@ -80,13 +90,11 @@ export const FillerApp = () => {
             nEnoughCount = count - imagesToFill.length;
         }
         setNotEnoughCount(Math.ceil(nEnoughCount))
+    }
 
-    }, [rowsCount, imagesToFill, isOneTextOfFileName]);
 
     //Сканирует текстовые объекты и объект для подстановки изображения в текущем PSD
     async function scanToFill() {
-        setTextGaps([])
-        setImageGap(undefined)
         try {
             if (!app.activeDocument) {
                 return [];
@@ -119,7 +127,7 @@ export const FillerApp = () => {
 
 
     async function validateToFill() {
-        let ofInput = splitTextByRows(rowTextToFill)
+        let ofInput = splitTextByRows(rawTextToFill)
         let ofFile = []
         if(isOneTextOfFileName){
             ofFile = imagesToFill.map(file => file.name)
@@ -195,9 +203,7 @@ export const FillerApp = () => {
 
     async function onInputTextToFill(e){
         let text = e.target.value
-        setRowTextToFill(text)
-        calculateRowsCount(text)
-        await validateToFill()
+        await setRawTextToFill("" + text)
     }
 
     function calculateRowsCount(text) {
@@ -214,20 +220,41 @@ export const FillerApp = () => {
         return split;
     }
 
-    function onInputTextFieldInComparison(e){
-        const currentLines = e.target.value.split(/\r\n|\r|\n/).length;
+    function onInputTextFieldInComparison(e, i){
+        let text = e.target.value
+        let prev = textsToFill.ofInputField[i]
+        const regex = new RegExp('↵', 'g');
+        const matches = [...text.matchAll(regex)];
+        matches.map(match => match.index).forEach(idx => {
+
+            if(text.length === prev.length - 1 && prev.charAt(idx) === '↵' && (text.charAt(idx) === '\r' || text.charAt(idx) === '\n')){
+                text = text.slice(0, idx) + text.slice(idx + 1)
+            }
+        });
+
+        text = text.replace('↵', '');
+        text = text.replace(/(?<!↵)\r/g, '↵\r');
+
+        text = text.replace(/(?<!↵)\n/g, '↵\n');
+
+        const currentLines = text.split("↵").length;
         if (currentLines > 2) {
-            const lastLineBreakIndex = e.target.value.search(/(\r\n|\r|\n)$/);
-            e.target.value = e.target.value.substring(0, lastLineBreakIndex);
+            e.target.value = prev
+        } else {
+            e.target.value = text
+            textsToFill.ofInputField[i] = text
         }
     }
 
     function toComparingPartUI(){
+        setTextsToFillCopy(JSON.parse(JSON.stringify(textsToFill)))
         setFillerPartUi("comparing")
     }
 
     function backToMainPartUi(){
-        // Как делается ref на field
+        // TODO Как делается ref на field по key
+        // TODO Как делается ref на field по key
+
         setFillerPartUi("main")
     }
 
@@ -280,6 +307,7 @@ export const FillerApp = () => {
                         <div className={"filler text-filler"}>
                             <span className={"filler-header"}>Тексты для заполнения</span>
                             <sp-textarea {...(!textGaps.length ? {disabled: true} : {})}
+                                         value={rawTextToFill}
                                          class="rows-input"
                                          onInput={onInputTextToFill}
                                          type={"text"}>
@@ -366,15 +394,15 @@ export const FillerApp = () => {
                             <h2>Режимы переносов</h2>
                             <CustomRadioButton
                                 value="without"
-                                onClick={() => setSelectedValue('without')}
-                                checked={selectedValue}>
+                                onClick={() => setSelectedSeparateMode('without')}
+                                checked={selectedSeparateMode}>
                                 <span className={"radio-label"}>Без переносов</span>
                             </CustomRadioButton>
 
                             <CustomRadioButton
                                 value="oneAndRest"
-                                onClick={() => setSelectedValue('oneAndRest')}
-                                checked={selectedValue}>
+                                onClick={() => setSelectedSeparateMode('oneAndRest')}
+                                checked={selectedSeparateMode}>
                                 <div className={"flex-row-start"}>
                                     <sp-textfield class="number-field" value={1} onInput={() => true}
                                                   type="number"></sp-textfield>
@@ -384,8 +412,8 @@ export const FillerApp = () => {
 
                             <CustomRadioButton
                                 value="restAndOne"
-                                onClick={() => setSelectedValue('restAndOne')}
-                                checked={selectedValue}>
+                                onClick={() => setSelectedSeparateMode('restAndOne')}
+                                checked={selectedSeparateMode}>
                                 <div className={"flex-row-start"}>
                                     <span className={"radio-label"}>Все в первой строке,</span>
                                     <sp-textfield class="number-field middle-number-field" value={1} onInput={() => true}
@@ -396,19 +424,19 @@ export const FillerApp = () => {
 
                             <CustomRadioButton
                                 value="custom"
-                                onClick={() => setSelectedValue('custom')}
-                                checked={selectedValue}>
+                                onClick={() => setSelectedSeparateMode('custom')}
+                                checked={selectedSeparateMode}>
                                 <span className={"radio-label"}>Задать вручную</span>
                             </CustomRadioButton>
                         </div>
                     </div>
                     <sp-card class={"separate-card file-list"}>
                         <sp-menu class={"select-menu"}>
-                            {textsToFill.ofInputField.map((text) => {
+                            {textsToFillCopy.ofInputField.map((text, idx) => {
                                 return (
                                     <sp-menu-item class={"separate-menu-item"}>
                                         <sp-menu-item>
-                                            <sp-textarea class={"separate-area"} onInput={onInputTextFieldInComparison} value={text}
+                                            <sp-textarea {...(selectedSeparateMode !== 'custom' ? {disabled: true} : {})} class={"separate-area"} onInput={(e) => onInputTextFieldInComparison(e, idx)} value={text}
                                                          type={"text"} rows={2}></sp-textarea>
                                         </sp-menu-item>
                                     </sp-menu-item>

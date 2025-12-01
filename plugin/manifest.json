@@ -92,6 +92,42 @@
         "scale": [1, 2],
         "theme": ["lightest", "light"]
       }]
+    },
+    {
+      "type": "panel",
+      "id": "demos2",
+      "label": {
+        "default": "Ворона доки"
+      },
+      "minimumSize": {
+        "width": 600,
+        "height": 650
+      },
+      "maximumSize": {
+        "width": 600,
+        "height": 650
+      },
+      "preferredDockedSize": {
+        "width": 600,
+        "height": 650
+      },
+      "preferredFloatingSize": {
+        "width": 600,
+        "height": 650
+      },
+      "icons": [{
+        "width": 23,
+        "height": 23,
+        "path": "icons/light2.png",
+        "scale": [1, 2],
+        "theme": ["darkest", "dark"]
+      }, {
+        "width": 23,
+        "height": 23,
+        "path": "icons/dark2.png",
+        "scale": [1, 2],
+        "theme": ["lightest", "light"]
+      }]
     }
   ],
   "icons": [{

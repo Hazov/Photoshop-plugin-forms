@@ -46,6 +46,42 @@ export class PhotoshopService {
         return await this.execute(() => photoshop.action.batchPlay(insertDescriptor, {}));
     }
 
+    async backHistory(doc, backCount){
+        let des;
+        if(backCount + 1 >= doc.historyStates.length){
+            des = [
+                {
+                    _obj: "select",
+                    _target: [
+                        {
+                            _ref: "snapshotClass",
+                            _name: doc.historyStates.find(h => h.snapshot).name
+                        }
+                    ],
+                    _options: {
+                        dialogOptions: "dontDisplay"
+                    }
+                }
+            ]
+        } else {
+            des = [
+                {
+                    _obj: "select",
+                    _target: [
+                        {
+                            _ref: "historyState",
+                            _offset: -backCount
+                        }
+                    ],
+                    _options: {
+                        dialogOptions: "dontDisplay"
+                    }
+                }
+            ]
+        }
+        return await this.execute(() => photoshop.action.batchPlay(des, {}));
+    }
+
     async resizeImage(percentValue) {
         let resizeDescriptor =
             [
@@ -806,6 +842,223 @@ export class PhotoshopService {
         recursiveGetLayers(layersArray);
 
         return flatLayers;
+    }
+
+    async mergeVisibleLayers(doc) {
+        await this.execute( async () => {
+            await app.activeDocument.mergeVisibleLayers()
+        })
+    }
+
+    async getRulerPoints() {
+            let des = [
+                    {
+                        _obj: "get",
+                        _target: [
+                            {
+                                _property: "rulerPoints"
+                            },
+                            {
+                                _ref: "document",
+                                _id: app.activeDocument.id
+                            }
+                        ],
+                        _options: {
+                            dialogOptions: "dontDisplay"
+                        }
+                    }
+                ]
+            return await this.execute(() => photoshop.action.batchPlay(des, {}));
+    }
+
+    async createA4() {
+        await this.execute(  () => {
+            return app.documents.add({
+                name: 'Ворона доки А4',
+                width: 2480,
+                height: 3508,
+                resolution: 300
+            })
+        })
+
+    }
+
+    async changeResolutionImage(number) {
+        await this.execute(  () => {
+             app.activeDocument.resizeImage(undefined, undefined, number)
+        });
+    }
+
+    async placeOnA4(formatItem, doc) {
+        await this.execute(  () => {
+            return formatItem.duplicate(doc);
+        });
+
+    }
+
+    async crop(bounds, size, resolution, angle ){
+        let des = [
+            {
+                "_obj": "crop",
+                "to": {
+                    "_obj": "rectangle",
+                    "top": {
+                        "_unit": "distanceUnit",
+                        "_value": bounds.top
+                    },
+                    "left": {
+                        "_unit": "distanceUnit",
+                        "_value": bounds.left
+                    },
+                    "bottom": {
+                        "_unit": "distanceUnit",
+                        "_value": bounds.bottom
+                    },
+                    "right": {
+                        "_unit": "distanceUnit",
+                        "_value": bounds.right
+                    }
+                },
+                "angle": {
+                    "_unit": "angleUnit",
+                    "_value": angle
+                },
+                "delete": true,
+                "AutoFillMethod": 1,
+                "cropFillMode": {
+                    "_enum": "cropFillMode",
+                    "_value": "defaultFill"
+                },
+                "cropAspectRatioModeKey": {
+                    "_enum": "cropAspectRatioModeClass",
+                    "_value": "targetSize"
+                },
+                "width": {
+                    "_unit": "distanceUnit",
+                    "_value": size.width
+                },
+                "height": {
+                    "_unit": "distanceUnit",
+                    "_value": size.height
+                },
+                "resolution": {
+                    "_unit": "densityUnit",
+                    "_value": resolution
+                },
+                "_isCommand": true
+            }
+        ]
+        return await this.execute(() => photoshop.action.batchPlay(des, {}));
+    }
+
+    async desaturate() {
+        let des = [
+            {
+                "_obj": "desaturate",
+                "_isCommand": true
+            }
+        ]
+        return await this.execute(() => photoshop.action.batchPlay(des, {}));
+    }
+
+    async setWhiteBackColor() {
+        let des = [
+            {
+                "_obj": "set",
+                "_target": [
+                    {
+                        "_ref": "color",
+                        "_property": "backgroundColor"
+                    }
+                ],
+                "to": {
+                    "_obj": "HSBColorClass",
+                    "hue": {
+                        "_unit": "angleUnit",
+                        "_value": 0
+                    },
+                    "saturation": 0,
+                    "brightness": 100
+                },
+                "source": "photoshopPicker",
+                "_isCommand": true
+            }
+        ]
+        return await this.execute(() => photoshop.action.batchPlay(des, {}));
+    }
+
+    async fillBackColor() {
+        let des = [
+            {
+                "_obj": "fill",
+                "using": {
+                    "_enum": "fillContents",
+                    "_value": "backgroundColor"
+                },
+                "opacity": {
+                    "_unit": "percentUnit",
+                    "_value": 100
+                },
+                "mode": {
+                    "_enum": "blendMode",
+                    "_value": "normal"
+                },
+                "_isCommand": true
+            }
+        ]
+        return await this.execute(() => photoshop.action.batchPlay(des, {}));
+    }
+
+    async makeStroke() {
+        let des = [
+            {
+                "_obj": "stroke",
+                "width": 1,
+                "location": {
+                    "_enum": "strokeLength",
+                    "_value": "center"
+                },
+                "opacity": {
+                    "_unit": "percentUnit",
+                    "_value": 100
+                },
+                "mode": {
+                    "_enum": "blendMode",
+                    "_value": "normal"
+                },
+                "color": {
+                    "_obj": "RGBColor",
+                    "red": 0,
+                    "grain": 0,
+                    "blue": 0
+                },
+                "_isCommand": true
+            }
+        ]
+        return await this.execute(() => photoshop.action.batchPlay(des, {}));
+    }
+
+    async unlockLayer() {
+        if(app.activeDocument.activeLayer.locked) {
+            let des = [
+                {
+                    "_obj": "applyLocking",
+                    "_target": [
+                        {
+                            "_ref": "layer",
+                            "_enum": "ordinal",
+                            "_value": "targetEnum"
+                        }
+                    ],
+                    "layerLocking": {
+                        "_obj": "layerLocking",
+                        "protectNone": true
+                    },
+                    "_isCommand": true
+                }
+            ]
+            return await this.execute(() => photoshop.action.batchPlay(des, {}));
+        }
     }
 }
 
