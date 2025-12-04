@@ -1,118 +1,145 @@
+import {PhotoshopService} from "../photoshopService";
+
+
+const photoshopService = new PhotoshopService();
+
+const photoshop = require('photoshop');
+const app = photoshop.app;
+const constants = photoshop.constants;
+
+
 export class PsDocsA4Placer {
 
-    // Функция расчета занимаемой площади слоя
-     calculateArea(layer) {
-        const bounds = layer.bounds;
-        return (bounds.right - bounds.left) * (bounds.bottom - bounds.top);
-    }
+    arrangeLayers(placeFormats) {
+        const groups = {
+            uncolor: [],
+            color: [],
+            glossyUncolor: [],
+            glossyColor: []
+        };
 
-    // Переводим миллиметры в пиксели (для конкретного разрешения PPI вашего проекта)
-     mmToPixels(mm, ppi = 300) {
-        return UnitValue.fromPoints((mm / 25.4) * ppi);
-    }
-
-
-
-    async  arrangeLayers(layersData) {
-        try {
-            // Сортируем слои по убыванию площади
-            layersData.sort((a, b) => calculateArea(b.layer) - calculateArea(a.layer));
-
-            // Определяем рабочую область документа
-            const doc = app.activeDocument;
-            const docWidth = doc.width.as('pixels');  // Ширина листа в пикселях
-            const docHeight = doc.height.as('pixels');  // Высота листа в пикселях
-
-            // Переменные для текущего положения
-            let currentX = 0;
-            let currentY = 0;
-            let lastSize = null;
-
-            // Расстояние между слоями
-            const gapBetweenSameSizes = mmToPixels(4); // 4 мм
-            const gapBetweenDifferentSizes = mmToPixels(8); // 8 мм
-
-            // Группы
-            let groupIndex = 0;
-            let previousGroup = null;
-
-            // Основной цикл по каждому слою
-            for (let data of layersData) {
-                const originalLayer = data.layer;
-
-                // Извлекаем слой из группы
-                originalLayer.parent.move(originalLayer, ElementPlacement.PLACEATBEGINNING);
-
-                // Копирование слоя
-                for (let i = 0; i < data.count; i++) {
-                    // Сначала проверяем наличие места
-                    const layerCopy = originalLayer.duplicate(); // Дублируем слой
-
-                    // Проверяем, поместится ли копия слоя справа
-                    const layerWidth = layerCopy.bounds.right - layerCopy.bounds.left;
-                    const nextX = currentX + layerWidth + (lastSize === layerCopy ? gapBetweenSameSizes : gapBetweenDifferentSizes);
-
-                    if (nextX <= docWidth) {
-                        // Есть место справа
-                        layerCopy.translate(currentX, currentY);
-
-                        // Обновляем позицию
-                        currentX += layerWidth + (lastSize === layerCopy ? gapBetweenSameSizes : gapBetweenDifferentSizes);
-                        lastSize = layerCopy;
-                    } else {
-                        // Нет места справа, идем вниз
-                        currentY += layerCopy.bounds.bottom - layerCopy.bounds.top + gapBetweenDifferentSizes;
-                        currentX = 0;
-
-                        // Повторяем проверку места
-                        if (currentY + layerCopy.bounds.bottom >= docHeight) {
-                            // Нет места ни справа, ни внизу
-
-                            // Пробуем повернуть слой на 90 градусов
-                            layerCopy.rotate(-90, Transformation.CENTER);
-
-                            // Пересчитываем положение
-                            const rotatedWidth = layerCopy.bounds.right - layerCopy.bounds.left;
-                            const rotatedNextX = currentX + rotatedWidth + (lastSize === layerCopy ? gapBetweenSameSizes : gapBetweenDifferentSizes);
-
-                            if (rotatedNextX <= docWidth && currentY + layerCopy.bounds.bottom <= docHeight) {
-                                // Теперь поместился после поворота
-                                layerCopy.translate(currentX, currentY);
-
-                                // Обновляем позицию
-                                currentX += rotatedWidth + (lastSize === layerCopy ? gapBetweenSameSizes : gapBetweenDifferentSizes);
-                                lastSize = layerCopy;
-                            } else {
-                                // Даже после поворота не удается разместить
-                                // Формируем группу и прячем её
-                                const group = doc.layerSets.add();
-                                group.name = `group-${++groupIndex}`;
-                                group.visible = false;
-                                previousGroup = group;
-
-                                // Ставим оригинал первого слоем в новом ряду
-                                originalLayer.move(group, ElementPlacement.PLACEATBEGINNING);
-                                break; // Переходим к следующему элементу массива
-                            }
-                        } else {
-                            // Просто перемещаемся вниз
-                            layerCopy.translate(currentX, currentY);
-                            currentX += layerWidth + (lastSize === layerCopy ? gapBetweenSameSizes : gapBetweenDifferentSizes);
-                            lastSize = layerCopy;
-                        }
-                    }
+        // Разделение по цветам и глянцу
+        placeFormats.forEach((placeFormat) => {
+            if (!placeFormat.color) {
+                if (placeFormat.glossy) {
+                    groups.glossyUncolor.push(placeFormat);
+                } else {
+                    groups.uncolor.push(placeFormat);
+                }
+            } else {
+                if (placeFormat.glossy) {
+                    groups.glossyColor.push(placeFormat);
+                } else {
+                    groups.color.push(placeFormat);
                 }
             }
+        });
 
-            // Если остались элементы в предыдущих группах, формируем новую группу
-            if (previousGroup) {
-                previousGroup.visible = false;
+
+
+        // Применение позиционирования для каждой группы
+        Object.keys(groups).forEach(key => {
+            groups[key] = this.calculatePosition(groups[key], key);
+        });
+
+        return groups;
+    }
+
+    calculatePosition(group, groupName) {
+        // Константы для формата А4
+        const pageWidthPx = 15 * 118;   // ширина страницы в пикселях
+        const pageHeightPx = 10 * 118;  // высота страницы в пикселях
+        const marginPx = 4 * 118 / 10;  // отступ в пикселях
+        const gapSameSizePx = 118 / 10; // расстояние между изображениями одного размера
+        const gapDiffSizePx = 118 / 10; // расстояние между изображениями разных размеров
+
+        let rightBorder = pageWidthPx - marginPx
+        let bottomBorder = pageHeightPx - marginPx
+
+
+        let resultArray = [[]];
+        let currentX = marginPx;
+        let currentY = marginPx;
+        let rowMaxHeight = 0;
+
+        group.sort((a, b) => b.width * b.heigth - a.width * a.heigth); // сортировка по площади
+
+        for (let i = 0; i < group.length; i++) {
+            const item = group[i];
+            const nextItem = group[i + 1];
+            item.width = item.width * 118;
+            item.heigth = item.heigth * 118;
+
+            // Проверяем помещается ли изображение в строку
+            if (currentX + item.width <= rightBorder && currentX + item.width <= rightBorder) {
+                item.x = currentX;
+                item.y = currentY;
+                currentX += item.width + (nextItem?.width === item.width ? gapSameSizePx : gapDiffSizePx);
+                rowMaxHeight = Math.max(rowMaxHeight, item.heigth);
+            } else {
+                // Переход на новую строку
+                currentX = marginPx;
+                currentY += rowMaxHeight + gapDiffSizePx;
+                rowMaxHeight = 0;
+                if (currentY + item.heigth > bottomBorder || currentX + item.width > rightBorder) {
+                        // Создаем новый массив для оставшихся изображений
+                        resultArray.push([]);
+                        currentX = marginPx;
+                        currentY = marginPx;
+                        rowMaxHeight = 0;
+
+                }
+                item.x = currentX;
+                item.y = currentY;
+                currentX += item.width + (nextItem?.width === item.width ? gapSameSizePx : gapDiffSizePx);
+                rowMaxHeight = Math.max(rowMaxHeight, item.heigth);
             }
+            resultArray[resultArray.length- 1].push(item);
+        }
+        resultArray = resultArray.filter(array => array.length > 0);
+        return resultArray;
+    }
 
-            console.log('Размещение слоев завершено.');
-        } catch (err) {
-            console.error('Ошибка:', err.message);
+    async place(arrangedLayers, allLayers) {
+        let c = 1;
+        let psGroup;
+
+
+        for (let colorGroup in arrangedLayers) {
+            if(arrangedLayers[colorGroup].length){
+                for (let format1015 of arrangedLayers[colorGroup]) {
+                    let layersToSelect = [];
+                    for (let format of format1015) {
+                        if(format.layerId){
+                            let layerToCopy = allLayers.find(layer => layer.id === format.layerId)
+                            format.layer = await photoshopService.execute(  () => {
+                                return layerToCopy.duplicate(app.activeDocument);
+                            });
+                        }
+
+                        layersToSelect.push(format.layer.id)
+
+                        app.activeDocument.activeLayer = format.layer
+                        await photoshopService.execute(() => {
+                            format.layer.move(app.activeDocument.layers.find(layer => layer.isBackgroundLayer), constants.ElementPlacement.PLACEBEFORE)
+
+                        })
+                        await photoshopService.moveImage({horizontal:  format.x, vertical: format.y})
+                    }
+
+                    psGroup = "Фотки" + c
+                    await photoshopService.groupLayers(layersToSelect, psGroup)
+
+                    if(c !== 1){
+                       await photoshopService.execute(() => {
+                           app.activeDocument.layers.find(layer => layer.name === psGroup).visible = false
+                       })
+                    }
+                    app.activeDocument.activeLayer = app.activeDocument.layers.find(layer => layer.isBackgroundLayer)
+
+                    c++
+                }
+            }
         }
     }
-    
 }

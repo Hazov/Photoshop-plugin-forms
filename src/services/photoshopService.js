@@ -290,7 +290,7 @@ export class PhotoshopService {
         await this.execute(() => photoshop.action.batchPlay(alignDescriptor, {}));
     }
 
-    async groupLayers(layerIds) {
+    async groupLayers(layerIds, groupName = "tempGroup") {
         await this.selectLayersByIds(layerIds);
         layerIds.sort((id1, id2) => id1 - id2);
         let groupLayersDescriptor =
@@ -309,7 +309,7 @@ export class PhotoshopService {
                     },
                     using: {
                         _obj: "layerSection",
-                        name: "tempGroup"
+                        name: groupName
                     },
                     layerSectionStart: layerIds[0],
                     layerSectionEnd: layerIds[layerIds.length - 1],
@@ -872,7 +872,7 @@ export class PhotoshopService {
     }
 
     async createA4() {
-        await this.execute(  () => {
+        return await this.execute(  () => {
             return app.documents.add({
                 name: 'Ворона доки А4',
                 width: 2480,
@@ -890,7 +890,7 @@ export class PhotoshopService {
     }
 
     async placeOnA4(formatItem, doc) {
-        await this.execute(  () => {
+        return await this.execute(  () => {
             return formatItem.duplicate(doc);
         });
 
@@ -961,14 +961,23 @@ export class PhotoshopService {
         return await this.execute(() => photoshop.action.batchPlay(des, {}));
     }
 
-    async setWhiteBackColor() {
+    async setBackColor(color) {
+        return await  this.setColor("backgroundColor", color)
+    }
+
+    async setFrontColor(color) {
+        return await this.setColor("foregroundColor", color)
+    }
+
+    async setColor(type, color){
+        color = color === 'white' ? {sat: 0, bright: 100} : {sat: 100, bright: 0};
         let des = [
             {
                 "_obj": "set",
                 "_target": [
                     {
                         "_ref": "color",
-                        "_property": "backgroundColor"
+                        "_property": type
                     }
                 ],
                 "to": {
@@ -977,8 +986,8 @@ export class PhotoshopService {
                         "_unit": "angleUnit",
                         "_value": 0
                     },
-                    "saturation": 0,
-                    "brightness": 100
+                    "saturation": color.sat,
+                    "brightness": color.bright
                 },
                 "source": "photoshopPicker",
                 "_isCommand": true
@@ -1039,26 +1048,67 @@ export class PhotoshopService {
     }
 
     async unlockLayer() {
-        if(app.activeDocument.activeLayer.locked) {
-            let des = [
-                {
-                    "_obj": "applyLocking",
-                    "_target": [
-                        {
-                            "_ref": "layer",
-                            "_enum": "ordinal",
-                            "_value": "targetEnum"
-                        }
-                    ],
-                    "layerLocking": {
-                        "_obj": "layerLocking",
-                        "protectNone": true
+        let des = [
+            {
+                "_obj": "applyLocking",
+                "_target": [
+                    {
+                        "_ref": "layer",
+                        "_enum": "ordinal",
+                        "_value": "targetEnum"
+                    }
+                ],
+                "layerLocking": {
+                    "_obj": "layerLocking",
+                    "protectNone": true
+                },
+                "_isCommand": true
+            }
+        ]
+        return await this.execute(() => photoshop.action.batchPlay(des, {}));
+    }
+
+
+    async unlockBackgroundLayer(backgroundLayer){
+        let des =  [
+            {
+                _obj: "set",
+                _target: [
+                    {
+                        _ref: "layer",
+                        _property: "background"
+                    }
+                ],
+                to: {
+                    _obj: "layer",
+                    opacity: {
+                        _unit: "percentUnit",
+                        _value: 100
                     },
-                    "_isCommand": true
+                    mode: {
+                        _enum: "blendMode",
+                        _value: "normal"
+                    }
+                },
+                layerID: backgroundLayer.id,
+                _options: {
+                    dialogOptions: "dontDisplay"
                 }
-            ]
-            return await this.execute(() => photoshop.action.batchPlay(des, {}));
-        }
+            }
+        ]
+        return await this.execute(() => photoshop.action.batchPlay(des, {}));
+    }
+
+    async fullMergeLayers() {
+        let des = [
+            {
+                _obj: "flattenImage",
+                _options: {
+                    dialogOptions: "dontDisplay"
+                }
+            }
+        ]
+        return await this.execute(() => photoshop.action.batchPlay(des, {}));
     }
 }
 

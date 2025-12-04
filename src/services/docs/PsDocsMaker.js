@@ -1,77 +1,104 @@
 import {PhotoshopService} from "../photoshopService";
+import {PlaceFormat} from "../../entities/docs/PlaceFormat";
+import {PsDocsA4Placer} from "./PsDocsA4Placer";
+
 
 const photoshop = require('photoshop');
 const app = photoshop.app;
+const constants = photoshop.constants;
 
 const photoshopService = new PhotoshopService();
+const psDocsA4Placer = new PsDocsA4Placer();
 
 export class PsDocsMaker {
     ruler;
     isSave;
+    selectedFormats;
 
-    init(ruler, isSave){
-        this.ruler = ruler
-        this.isSave = isSave
-        return this
+    init(selectedFormats, ruler, isSave){
+        this.selectedFormats = selectedFormats;
+        this.ruler = JSON.parse(JSON.stringify(ruler));
+        this.ruler = this.ruler[0].points
+        this.isSave = isSave;
+        return this;
     }
     async make() {
-
-        let rulerPoints = JSON.parse(JSON.stringify(this.ruler));
-        let coloredGroup = []
-        let blackAndWhiteGroup = []
+        let placeFormats = [];
 
         // Если установлена галочка сохранения
-        if (this.isSave) {
-            this.saveAsJPEG(formatItem.item);
-        }
+        // if (this.isSave) {
+        //     this.saveAsJPEG(formatItem.item);
+        // }
 
-        let photoDocument = app.activeDocument.id
+        let photoDocument = app.activeDocument
 
         await photoshopService.createA4()
 
         let A4Document = app.activeDocument
 
-        // Добавляем группы слоев
-        coloredGroup = await photoshopService.createGroup('Цветные');
-        blackAndWhiteGroup = await photoshopService.createGroup('Чб');
+        await photoshopService.switchDocument(photoDocument.id)
 
-        await photoshopService.switchDocument(photoDocument)
-
-
-        await this.removeInvisibleLayers();
-        app.activeDocument.activeLayer = app.activeDocument.layers.find(layer => layer)
-        await photoshopService.mergeVisibleLayers();
-        await photoshopService.unlockLayer()
+        await photoshopService.fullMergeLayers()
 
         let histCount = 0;
-        for (const formatItem of selectedFormats) {
+
+        let allLayers = [];
+
+        for (const formatItem of this.selectedFormats) {
+            let placeFormat = new PlaceFormat(formatItem.item.width, formatItem.item.height, formatItem.item.color, formatItem.item.glossy);
+
+            // История назад
             if (histCount > 0) {
                 await photoshopService.backHistory(app.activeDocument, histCount)
                 histCount = 0;
             }
 
-            await this.cropImage(formatItem, rulerPoints);
+            // Кадрирование
+            await this.cropImage(formatItem);
             histCount++;
 
+            // Уголок / овал
             let angle = formatItem.item.angle;
             let face = formatItem.item.face;
-
             if (angle && angle !== 'none') {
                 let angleOperationCount = await this.drawCircleForAngle(app.activeDocument, angle, face);
                 histCount+=angleOperationCount;
             }
 
+            // Обесцветить
             if(!formatItem.item.color){
                 await photoshopService.desaturate();
                 histCount++;
             }
-            if(formatItem.item.border){
+
+            await photoshopService.setFrontColor('black')
+            // Обводка
+            if(formatItem.item.border) {
+                app.activeDocument.activeLayer = app.activeDocument.layers.find(layer => layer)
+                if(app.activeDocument.activeLayer.locked) {
+                    await photoshopService.unlockBackgroundLayer(app.activeDocument.activeLayer)
+                }
                 await photoshopService.makeStroke();
                 histCount++;
             }
-            let activeLayer = app.activeDocument.layers.find(layer => layer)
-            await photoshopService.placeOnA4(activeLayer, A4Document)
+
+            let layerToCopy = {}
+            for (let i = 0; i < formatItem.count; i++) {
+                let plF = JSON.parse(JSON.stringify(placeFormat));
+                let activeLayer = app.activeDocument.layers.find(layer => layer)
+                if(i === 0){
+                    layerToCopy = await photoshopService.placeOnA4(activeLayer, A4Document)
+                    plF.layer = layerToCopy
+                    allLayers.push(plF.layer)
+                } else {
+                    plF.layerId = layerToCopy.id
+                }
+                placeFormats.push(plF);
+            }
         }
+        let arrangedLayers = psDocsA4Placer.arrangeLayers(placeFormats)
+        await photoshopService.switchDocument(A4Document.id)
+        await psDocsA4Placer.place(arrangedLayers, allLayers);
     }
 
 
@@ -90,13 +117,13 @@ export class PsDocsMaker {
     }
 
 
-    async  cropImage(formatItem, ruler) {
+    async  cropImage(formatItem) {
         let resDoc = app.activeDocument.resolution;
         let mn = 72 / resDoc;
-        let startX = ruler[1].x._value * mn;
-        let startY = ruler[1].y._value * mn;
-        let endX = ruler[2].x._value * mn;
-        let endY = ruler[2].y._value * mn;
+        let startX = this.ruler[1].x._value * mn;
+        let startY = this.ruler[1].y._value * mn;
+        let endX = this.ruler[2].x._value * mn;
+        let endY = this.ruler[2].y._value * mn;
 
         let angle = this.calculateLineAngle(startX, startY, endX, endY)
 
@@ -164,7 +191,7 @@ export class PsDocsMaker {
             operationCount++;
         }
 
-        await photoshopService.setWhiteBackColor()
+        await photoshopService.setBackColor('white')
         await photoshopService.fillBackColor()
         operationCount++;
 

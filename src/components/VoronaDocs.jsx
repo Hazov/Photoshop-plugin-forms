@@ -46,11 +46,21 @@ export const VoronaDocs = () => {
         await getRulerLine();
     }
 
-    function changeCount(event, idx) {
+    function changeCount(event, index) {
         const cleanedValue = event.target.value.replace(/[-,.]/g, "");
         const numericValue = Number(cleanedValue);
         const clampedValue = Math.max(Math.min(numericValue, 100), 1);
-        handleChangeFormat(idx, 'count', clampedValue)
+
+        setSelectedFormats(prevFormats => {
+            return prevFormats.map((formatObj, idx) => {
+                if (idx === index) {
+                    // Обновляем только 'count', оставляя остальные свойства неизменными
+                    return ({...formatObj, count: clampedValue});
+                }
+                return formatObj;
+            });
+        });
+
         event.target.value = clampedValue.toString();
     }
 
@@ -76,11 +86,19 @@ export const VoronaDocs = () => {
         if(ruler && ruler[0]?.points){
             setRuler(ruler[0].points)
         }
-
+        return ruler;
     }
 
     async function makeDocs(){
-        await psDocsMaker.init(ruler, isSave).make()
+        let ruler = await getRulerLine();
+        await psDocsMaker.init(selectedFormats, ruler, isSave);
+        if(psDocsMaker.ruler){
+            await psDocsMaker.make()
+        } else {
+            setRuler(undefined)
+        }
+
+
     }
 
     // Функция для создания экземпляра формата
