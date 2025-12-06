@@ -409,7 +409,7 @@ export const VoronaDocs = () => {
                 })()}
 
 
-                <button {...(!ruler || !selectedFormats.length ? {disabled: true} : {})}
+                <button {...(!selectedFormats.length ? {disabled: true} : {})}
                         onClick={makeDocs}>
                     Расположить на лист
                 </button>

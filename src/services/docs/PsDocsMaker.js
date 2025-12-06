@@ -45,12 +45,14 @@ export class PsDocsMaker {
         let allLayers = [];
 
         for (const formatItem of this.selectedFormats) {
+            let placeItemWidth = formatItem.width
+            let placeItemHeight = formatItem.height
             if(formatItem.item.measure === 'mm'){
-                formatItem.item.width /= 10;
-                formatItem.item.height /= 10;
+                placeItemWidth = formatItem.item.width / 10;
+                placeItemHeight = formatItem.item.height / 10;
                 formatItem.item.measure = 'cm'
             }
-            let placeFormat = new PlaceFormat(formatItem.item.width, formatItem.item.height, formatItem.item.color, formatItem.item.glossy);
+            let placeFormat = new PlaceFormat(placeItemWidth, placeItemHeight, formatItem.item.color, formatItem.item.glossy);
 
             // История назад
             if (histCount > 0) {
