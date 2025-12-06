@@ -27,6 +27,7 @@ const constants = photoshop.constants;
 export const VoronaDocs = () => {
     let [selectedFormats, setSelectedFormats] = useState([]);
     let [globalColor, setGlobalColor] = useState(true);
+    let [militaryFace, setMilitaryFace] = useState(false);
     let [prevFormatInputValue, setPrevFormatInputValue] = useState('');
     let [isSave, setIsSave] = useState(false);
     let [ruler, setRuler] = useState({});
@@ -35,15 +36,13 @@ export const VoronaDocs = () => {
     init().then(ignore => {});
     async function init() {
         if (!isInit) {
-            await action.addNotificationListener(["all"], photoshopListener);
-            photoshopListener();
             isInit = true
         }
     }
 
 
-    async function photoshopListener() {
-        await getRulerLine();
+    function cleanFormats(){
+        setSelectedFormats([])
     }
 
     function changeCount(event, index) {
@@ -106,7 +105,7 @@ export const VoronaDocs = () => {
         let c = globalColor;
         let a = 'none';
         let b = true;
-        let f = 40;
+        let f = militaryFace ? 10 : 40;
         let g = false;
         let m = 'cm'
 
@@ -262,7 +261,12 @@ export const VoronaDocs = () => {
         <div>
             <h1>Фото на документы</h1>
             <div className={"header-control-row"}>
-                <sp-switch emphasized onInput={() => setGlobalColor(!globalColor)} {...(globalColor ? {checked: true} : {})}>Цветная</sp-switch>
+                <sp-switch emphasized
+                           onInput={() => setGlobalColor(!globalColor)} {...(globalColor ? {checked: true} : {})}>Цветная
+                </sp-switch>
+                <sp-switch emphasized
+                           onInput={() => setMilitaryFace(!militaryFace)} {...(militaryFace ? {checked: true} : {})}>По погоны
+                </sp-switch>
             </div>
 
             <div className={'btn-group'}>
@@ -277,6 +281,14 @@ export const VoronaDocs = () => {
                     <sp-button class={'btn-in-row'} onClick={() => addFormat(3.5, 4.5, 'pass')}>Паспорт</sp-button>
                 </div>
             </div>
+            {(() => {
+                if (selectedFormats.length) {
+                    return (
+                        <span onClick={cleanFormats} className={"text-right link"}>Очистить</span>
+                    )
+                }
+            })()}
+
             <sp-card class={"separate-card"}>
                 <sp-menu className="flex-table">
                     <div className="header-row">
@@ -300,7 +312,8 @@ export const VoronaDocs = () => {
                                                   value={`${format.item.width}x${format.item.height}`}
                                                   onInput={(e) => handleFormatInput(e, idx)}>
                                     </sp-textfield>
-                                    <span className={'absolute'} onClick={() => changeMeasure(idx)}>{measures[format.item.measure]}</span>
+                                    <span className={'absolute'}
+                                          onClick={() => changeMeasure(idx)}>{measures[format.item.measure]}</span>
                                 </div>
                                 {/*Цвет*/}
                                 <div className="col-2">
@@ -327,10 +340,22 @@ export const VoronaDocs = () => {
 
                                     >
                                         <sp-menu slot="options">
-                                            <sp-menu-item onClick={(e) => handleChangeFormat(idx, 'angle', e.target.value)} value="right" >Нет</sp-menu-item>
-                                            <sp-menu-item onClick={(e) => handleChangeFormat(idx, 'angle', e.target.value)} value="right" >Правый</sp-menu-item>
-                                            <sp-menu-item onClick={(e) => handleChangeFormat(idx, 'angle', e.target.value)} value="left" >Левый</sp-menu-item>
-                                            <sp-menu-item onClick={(e) => handleChangeFormat(idx, 'angle', e.target.value)} value="oval" >Овал</sp-menu-item>
+                                            <sp-menu-item
+                                                onClick={(e) => handleChangeFormat(idx, 'angle', e.target.value)}
+                                                value="right">Нет
+                                            </sp-menu-item>
+                                            <sp-menu-item
+                                                onClick={(e) => handleChangeFormat(idx, 'angle', e.target.value)}
+                                                value="right">Правый
+                                            </sp-menu-item>
+                                            <sp-menu-item
+                                                onClick={(e) => handleChangeFormat(idx, 'angle', e.target.value)}
+                                                value="left">Левый
+                                            </sp-menu-item>
+                                            <sp-menu-item
+                                                onClick={(e) => handleChangeFormat(idx, 'angle', e.target.value)}
+                                                value="oval">Овал
+                                            </sp-menu-item>
                                         </sp-menu>
                                     </sp-picker>
                                 </div>
@@ -361,9 +386,9 @@ export const VoronaDocs = () => {
                                 {/*X*/}
                                 <div className={'col-7'}>
                                     <img onClick={() => removeFormat(idx)}
-                                        src={clearImg}
-                                        className={'center-control clearImg'}
-                                        alt="" />
+                                         src={clearImg}
+                                         className={'center-control clearImg'}
+                                         alt=""/>
                                 </div>
                             </div>
                         ))}

@@ -802,9 +802,9 @@ export class PhotoshopService {
     }
 
 // Функция для поворота слоя
-    async  rotateLayer(layer, angle) {
+    async  rotateLayer(layer, angle, anchor) {
         await this.execute( () => {
-            layer.rotate(angle);
+            layer.rotate(angle, anchor);
         });
     }
 
@@ -813,6 +813,26 @@ export class PhotoshopService {
         await this.execute( () => {
             layer.delete();
         });
+    }
+
+    async  removeLayersByIds(layerIds) {
+        let des = [
+            {
+                _obj: "delete",
+                _target: [
+                    {
+                        _ref: "layer",
+                        _enum: "ordinal",
+                        _value: "targetEnum"
+                    }
+                ],
+                layerID: layerIds,
+                _options: {
+                    dialogOptions: "dontDisplay"
+                }
+            }
+        ]
+        return await this.execute(() => photoshop.action.batchPlay(des, {}));
     }
 
     async switchDocument(oldDocumentId) {

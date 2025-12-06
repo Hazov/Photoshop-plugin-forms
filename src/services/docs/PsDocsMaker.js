@@ -45,6 +45,11 @@ export class PsDocsMaker {
         let allLayers = [];
 
         for (const formatItem of this.selectedFormats) {
+            if(formatItem.item.measure === 'mm'){
+                formatItem.item.width /= 10;
+                formatItem.item.height /= 10;
+                formatItem.item.measure = 'cm'
+            }
             let placeFormat = new PlaceFormat(formatItem.item.width, formatItem.item.height, formatItem.item.color, formatItem.item.glossy);
 
             // История назад
@@ -77,6 +82,7 @@ export class PsDocsMaker {
                 app.activeDocument.activeLayer = app.activeDocument.layers.find(layer => layer)
                 if(app.activeDocument.activeLayer.locked) {
                     await photoshopService.unlockBackgroundLayer(app.activeDocument.activeLayer)
+                    histCount++;
                 }
                 await photoshopService.makeStroke();
                 histCount++;
@@ -88,11 +94,9 @@ export class PsDocsMaker {
                 let activeLayer = app.activeDocument.layers.find(layer => layer)
                 if(i === 0){
                     layerToCopy = await photoshopService.placeOnA4(activeLayer, A4Document)
-                    plF.layer = layerToCopy
-                    allLayers.push(plF.layer)
-                } else {
-                    plF.layerId = layerToCopy.id
+                    allLayers.push(layerToCopy)
                 }
+                plF.layerId = layerToCopy.id
                 placeFormats.push(plF);
             }
         }
@@ -201,23 +205,6 @@ export class PsDocsMaker {
             doc.selection.feather(0);
         })
 
-        if(angle === 'oval'){
-            let parent = doc.activeLayer
-            let backLayer = await photoshopService.execute(  () => {
-                return doc.createLayer()
-            });
-            operationCount++;
-            await photoshopService.execute(  () => {
-                backLayer.move(parent, constants.ElementPlacement.PLACEAFTER)
-            });
-            operationCount++;
-
-            await photoshopService.fillBackColor()
-            operationCount++;
-
-            await photoshopService.mergeVisibleLayers();
-            histCount++;
-        }
         return operationCount;
     }
 

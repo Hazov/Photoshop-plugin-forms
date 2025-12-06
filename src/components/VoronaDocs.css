@@ -93,3 +93,14 @@
     bottom: 10px;
     color: darksalmon;
 }
+
+.link {
+    padding-right: 10px;
+    color: lightskyblue;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.text-right{
+    text-align: right;
+}

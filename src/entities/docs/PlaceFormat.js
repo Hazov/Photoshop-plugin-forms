@@ -2,15 +2,16 @@ export class PlaceFormat {
     layer;
     layerId;
     width;
-    heigth;
+    height;
     x;
     y;
     color;
     glossy;
+    isRotated = false
 
-    constructor(width, heigth, color, glossy) {
+    constructor(width, height, color, glossy) {
         this.width = width;
-        this.heigth = heigth;
+        this.height = height;
         this.color = color;
         this.glossy = glossy;
     }
