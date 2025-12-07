@@ -110,6 +110,12 @@
     cursor: pointer;
 }
 
+.make-crests-link{
+    position: absolute;
+    top: 10px;
+    left: 10px;
+}
+
 .footer {
     display: flex;
     align-items: center;

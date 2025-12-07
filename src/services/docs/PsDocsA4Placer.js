@@ -123,7 +123,7 @@ export class PsDocsA4Placer {
 
     }
 
-    async place(arrangedLayers, allLayers) {
+    async place(arrangedLayers, allLayers, onA4) {
         let c = 1;
         let psGroup;
 
@@ -183,6 +183,12 @@ export class PsDocsA4Placer {
         let groupLayers = app.activeDocument.layers.filter(layer => layer.layers?.length)
         if(groupLayers.find(group => group.layers.length < 2)){
             await photoshopService.collapseAllGroups()
+        }
+
+        if(!onA4) {
+            let width = 14.8 * 28.346456692913384
+            let height = 10.5 * 28.346456692913384
+            await photoshopService.crop({top: 0, left: 0, right: width, bottom: height}, {width: width, height: height}, 300, 0)
         }
 
     }

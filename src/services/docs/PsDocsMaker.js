@@ -14,12 +14,14 @@ export class PsDocsMaker {
     ruler;
     isSave;
     selectedFormats;
+    onA4;
 
-    init(selectedFormats, ruler, isSave){
+    init(selectedFormats, ruler, isSave, onA4){
         this.selectedFormats = selectedFormats;
         this.ruler = JSON.parse(JSON.stringify(ruler));
         this.ruler = this.ruler[0].points
         this.isSave = isSave;
+        this.onA4 = onA4;
         return this;
     }
     async make() {
@@ -45,8 +47,8 @@ export class PsDocsMaker {
         let allLayers = [];
 
         for (const formatItem of this.selectedFormats) {
-            let placeItemWidth = formatItem.width
-            let placeItemHeight = formatItem.height
+            let placeItemWidth = formatItem.item.width
+            let placeItemHeight = formatItem.item.height
             if(formatItem.item.measure === 'mm'){
                 placeItemWidth = formatItem.item.width / 10;
                 placeItemHeight = formatItem.item.height / 10;
@@ -80,15 +82,22 @@ export class PsDocsMaker {
 
             await photoshopService.setFrontColor('black')
             // Обводка
-            if(formatItem.item.border) {
+            if(formatItem.item.border !== 'no'){
                 app.activeDocument.activeLayer = app.activeDocument.layers.find(layer => layer)
                 if(app.activeDocument.activeLayer.locked) {
                     await photoshopService.unlockBackgroundLayer(app.activeDocument.activeLayer)
                     histCount++;
                 }
-                await photoshopService.makeStroke();
-                histCount++;
+                if(formatItem.item.border === 'yes') {
+                    await photoshopService.makeStroke();
+                    histCount++;
+                } else if(formatItem.item.border === 'crest') {
+                    histCount = await this.makeCrests(histCount);
+                }
+                await photoshopService.fullMergeLayers()
+                histCount++
             }
+
 
             let layerToCopy = {}
             for (let i = 0; i < formatItem.count; i++) {
@@ -104,7 +113,51 @@ export class PsDocsMaker {
         }
         let arrangedLayers = psDocsA4Placer.arrangeLayers(placeFormats)
         await photoshopService.switchDocument(A4Document.id)
-        await psDocsA4Placer.place(arrangedLayers, allLayers);
+        await psDocsA4Placer.place(arrangedLayers, allLayers, this.onA4);
+    }
+
+    async makeCrests() {
+        let operationCount = 0;
+        operationCount += await this.drawCrests();
+        await photoshopService.extendImage(0.4)
+        operationCount++
+        return operationCount;
+    }
+
+    async drawCrests() {
+        let length = 15;
+        let operationCount = 0;
+
+        let mn = app.activeDocument.resolution / 72
+        let width = app.activeDocument.width / mn
+        let height = app.activeDocument.height / mn
+
+        // Левый верхний угол
+        await photoshopService.drawLine({hStart: 0, hEnd: -length, vStart: 0, vEnd: 0});
+        operationCount++;
+        await photoshopService.drawLine({hStart: 0, hEnd: 0, vStart: 0, vEnd: -length});
+        operationCount++;
+
+        // Правый верхний угол
+        await photoshopService.drawLine({hStart: width, hEnd: width + length, vStart: 0, vEnd: 0});
+        operationCount++;
+        await photoshopService.drawLine({hStart: width, hEnd: width, vStart: 0, vEnd: -length});
+        operationCount++;
+
+        // Нижний левый угол
+        await photoshopService.drawLine({hStart: 0, hEnd: - length, vStart: height, vEnd: height});
+        operationCount++;
+        await photoshopService.drawLine({hStart: 0, hEnd: 0, vStart: height, vEnd: height + length});
+        operationCount++;
+
+        // Нижний правый угол
+        await photoshopService.drawLine({hStart: width, hEnd: width + length, vStart: height, vEnd: height});
+        operationCount++;
+        await photoshopService.drawLine({hStart: width, hEnd: width, vStart: height, vEnd: height + length});
+        operationCount++;
+
+        return operationCount;
+
     }
 
 

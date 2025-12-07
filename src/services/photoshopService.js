@@ -1130,6 +1130,145 @@ export class PhotoshopService {
         ]
         return await this.execute(() => photoshop.action.batchPlay(des, {}));
     }
+
+    async drawLine(coordinates) {
+        let des = [
+            {
+                _obj: "make",
+                _target: [
+                    {
+                        _ref: "contentLayer"
+                    }
+                ],
+                using: {
+                    _obj: "contentLayer",
+                    type: {
+                        _obj: "solidColorLayer",
+                        color: {
+                            _obj: "RGBColor",
+                            red: 0,
+                            grain: 0,
+                            blue: 0
+                        }
+                    },
+                    shape: {
+                        _obj: "lineClass",
+                        saturation: {
+                            _obj: "paint",
+                            horizontal: {
+                                _unit: "distanceUnit",
+                                _value: coordinates.hStart
+                            },
+                            vertical: {
+                                _unit: "distanceUnit",
+                                _value: coordinates.vStart
+                            }
+                        },
+                        end: {
+                            _obj: "paint",
+                            horizontal: {
+                                _unit: "distanceUnit",
+                                _value: coordinates.hEnd
+                            },
+                            vertical: {
+                                _unit: "distanceUnit",
+                                _value: coordinates.vEnd
+                            }
+                        },
+                        width: {
+                            _unit: "pixelsUnit",
+                            _value: 1
+                        }
+                    },
+                    strokeStyle: {
+                        _obj: "strokeStyle",
+                        strokeStyleVersion: 2,
+                        strokeEnabled: true,
+                        fillEnabled: true,
+                        strokeStyleLineWidth: {
+                            _unit: "pixelsUnit",
+                            _value: 0
+                        },
+                        strokeStyleLineDashOffset: {
+                            _unit: "pointsUnit",
+                            _value: 0
+                        },
+                        strokeStyleMiterLimit: 100,
+                        strokeStyleLineCapType: {
+                            _enum: "strokeStyleLineCapType",
+                            _value: "strokeStyleButtCap"
+                        },
+                        strokeStyleLineJoinType: {
+                            _enum: "strokeStyleLineJoinType",
+                            _value: "strokeStyleMiterJoin"
+                        },
+                        strokeStyleLineAlignment: {
+                            _enum: "strokeStyleLineAlignment",
+                            _value: "strokeStyleAlignCenter"
+                        },
+                        strokeStyleScaleLock: false,
+                        strokeStyleStrokeAdjust: false,
+                        strokeStyleLineDashSet: [],
+                        strokeStyleBlendMode: {
+                            _enum: "blendMode",
+                            _value: "normal"
+                        },
+                        strokeStyleOpacity: {
+                            _unit: "percentUnit",
+                            _value: 100
+                        },
+                        strokeStyleContent: {
+                            _obj: "solidColorLayer",
+                            color: {
+                                _obj: "RGBColor",
+                                red: 0,
+                                grain: 0,
+                                blue: 0
+                            }
+                        },
+                        strokeStyleResolution: app.activeDocument.resolution
+                    }
+                },
+                _options: {
+                    dialogOptions: "dontDisplay"
+                }
+            }
+        ]
+        return await this.execute(() => photoshop.action.batchPlay(des, {}));
+    }
+
+    async extendImage(cm) {
+        let des = [
+            {
+                _obj: "canvasSize",
+                relative: true,
+                width: {
+                    _unit: "distanceUnit",
+                    _value: cm * 28.32
+                },
+                height: {
+                    _unit: "distanceUnit",
+                    _value: cm * 28.32
+                },
+                horizontal: {
+                    _enum: "horizontalLocation",
+                    _value: "center"
+                },
+                vertical: {
+                    _enum: "verticalLocation",
+                    _value: "center"
+                },
+                canvasExtensionColorType: {
+                    _enum: "canvasExtensionColorType",
+                    _value: "backgroundColor"
+                },
+                _options: {
+                    dialogOptions: "dontDisplay"
+                }
+            }
+        ]
+        return await this.execute(() => photoshop.action.batchPlay(des, {}));
+    }
 }
 
 
