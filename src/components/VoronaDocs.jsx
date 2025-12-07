@@ -7,6 +7,7 @@ import clearImg from '/src/images/clear.png'
 import {PhotoshopService} from "../services/PhotoshopService";
 import {PsDocsMaker} from "../services/docs/PsDocsMaker";
 import {PsDocsA4Placer} from "../services/docs/PsDocsA4Placer";
+import {FillerApp} from "./FillerApp";
 
 const photoshopService = new PhotoshopService();
 const psDocsMaker = new PsDocsMaker()
@@ -32,21 +33,16 @@ export const VoronaDocs = () => {
     let [isSave, setIsSave] = useState(false);
     let [ruler, setRuler] = useState({});
     let [onA4, setOnA4] = useState(true);
+    let [isMilitary, setIsMilitary] = useState(false);
 
 
     init().then(ignore => {});
     async function init() {
         if (!isInit) {
-            await action.addNotificationListener(["all"], photoshopListener);
-            photoshopListener();
             isInit = true
         }
     }
 
-
-    async function photoshopListener() {
-        await getRulerLine();
-    }
 
     function changeCount(event, index) {
         const cleanedValue = event.target.value.replace(/[-,.]/g, "");
@@ -108,7 +104,7 @@ export const VoronaDocs = () => {
         let c = globalColor;
         let a = 'none';
         let b = 'yes';
-        let f = 40;
+        let f = isMilitary ? 10 : 40;
         let g = false;
         let m = 'cm'
 
@@ -125,7 +121,7 @@ export const VoronaDocs = () => {
         if (isPassport === 'pass') {
             g = true;
             f = 80;
-            b = false
+            b = 'no'
         }
         if (isPassport === 'zagran') {
             f = 70;
@@ -245,6 +241,10 @@ export const VoronaDocs = () => {
 
     }
 
+    function cleanFormats(){
+        setSelectedFormats([])
+    }
+
 
 
 
@@ -272,6 +272,7 @@ export const VoronaDocs = () => {
             <h1>Фото на документы</h1>
             <div className={"header-control-row"}>
                 <sp-switch emphasized onInput={() => setGlobalColor(!globalColor)} {...(globalColor ? {checked: true} : {})}>Цветная</sp-switch>
+                <sp-switch emphasized onInput={() => setIsMilitary(!isMilitary)} {...(isMilitary ? {checked: true} : {})}>По погоны</sp-switch>
             </div>
 
             <div className={'btn-group'}>
@@ -286,6 +287,13 @@ export const VoronaDocs = () => {
                     <sp-button class={'btn-in-row'} onClick={() => addFormat(3.5, 4.5, 'pass')}>Паспорт</sp-button>
                 </div>
             </div>
+
+            {(() => {
+                if (selectedFormats.length) {
+                    return (<span onClick={cleanFormats} className={'text-right link'}>Очистить</span>)
+                }
+            })()}
+
             <sp-card class={"separate-card"}>
                 <sp-menu className="flex-table">
                     <div className="header-row">
@@ -401,7 +409,7 @@ export const VoronaDocs = () => {
                 </div>
 
 
-                <button {...(!ruler || !selectedFormats.length ? {disabled: true} : {})}
+                <button {...(!selectedFormats.length ? {disabled: true} : {})}
                         onClick={makeDocs}>
                     Расположить на лист
                 </button>

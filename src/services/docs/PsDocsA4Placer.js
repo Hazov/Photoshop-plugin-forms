@@ -189,6 +189,7 @@ export class PsDocsA4Placer {
             let width = 14.8 * 28.346456692913384
             let height = 10.5 * 28.346456692913384
             await photoshopService.crop({top: 0, left: 0, right: width, bottom: height}, {width: width, height: height}, 300, 0)
+            await photoshopService.rotateDocument(90)
         }
 
     }

@@ -1131,6 +1131,29 @@ export class PhotoshopService {
         return await this.execute(() => photoshop.action.batchPlay(des, {}));
     }
 
+    async rotateDocument(angle){
+        let des = [
+            {
+                _obj: "rotateEventEnum",
+                _target: [
+                    {
+                        _ref: "document",
+                        _enum: "ordinal",
+                        _value: "first"
+                    }
+                ],
+                angle: {
+                    _unit: "angleUnit",
+                    _value: angle
+                },
+                _options: {
+                    dialogOptions: "dontDisplay"
+                }
+            }
+        ]
+        return await this.execute(() => photoshop.action.batchPlay(des, {}));
+    }
+
     async drawLine(coordinates) {
         let des = [
             {

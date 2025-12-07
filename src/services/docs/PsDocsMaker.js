@@ -52,7 +52,6 @@ export class PsDocsMaker {
             if(formatItem.item.measure === 'mm'){
                 placeItemWidth = formatItem.item.width / 10;
                 placeItemHeight = formatItem.item.height / 10;
-                formatItem.item.measure = 'cm'
             }
             let placeFormat = new PlaceFormat(placeItemWidth, placeItemHeight, formatItem.item.color, formatItem.item.glossy);
 
