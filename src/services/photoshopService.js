@@ -789,10 +789,10 @@ export class PhotoshopService {
         });
     }
 
-// Вспомогательная функция для изменения размера слоя
-    async  resizeLayer(layer, factor) {
+
+    async resizeLayer(layer, sizes) {
         await this.execute( () => {
-            layer.scale(factor * 100, factor * 100);
+            layer.scale(sizes.width, sizes.height);
         });
     }
 
@@ -900,7 +900,17 @@ export class PhotoshopService {
                 resolution: 300
             })
         })
+    }
 
+    async createPolaroidTemplate() {
+        return await this.execute(  () => {
+            return app.documents.add({
+                name: 'Полароид',
+                width: 8.8 * 118,
+                height: 10.8 * 118,
+                resolution: 300
+            })
+        })
     }
 
     async changeResolutionImage(number) {
@@ -1260,18 +1270,18 @@ export class PhotoshopService {
         return await this.execute(() => photoshop.action.batchPlay(des, {}));
     }
 
-    async extendImage(cm) {
+    async extendImage(widthCm, heightCm = widthCm, relative = true) {
         let des = [
             {
                 _obj: "canvasSize",
-                relative: true,
+                relative: relative,
                 width: {
                     _unit: "distanceUnit",
-                    _value: cm * 28.32
+                    _value: widthCm * 28.32
                 },
                 height: {
                     _unit: "distanceUnit",
-                    _value: cm * 28.32
+                    _value: heightCm * 28.32
                 },
                 horizontal: {
                     _enum: "horizontalLocation",
@@ -1285,6 +1295,76 @@ export class PhotoshopService {
                     _enum: "canvasExtensionColorType",
                     _value: "backgroundColor"
                 },
+                _options: {
+                    dialogOptions: "dontDisplay"
+                }
+            }
+        ]
+        return await this.execute(() => photoshop.action.batchPlay(des, {}));
+    }
+
+    async antSelection(doc, borders) {
+        await this.execute(() => {
+            doc.selection.selectRectangle(
+                {top: borders.top, left: borders.left, bottom: borders.bottom, right: borders.right},
+                constants.SelectionType.REPLACE,
+                0
+            );
+        })
+    }
+
+    async cropSelected() {
+        let des =  [
+            {
+                _obj: "delete",
+                _options: {
+                    dialogOptions: "dontDisplay"
+                }
+            }
+        ]
+        return await this.execute(() => photoshop.action.batchPlay(des, {}));
+    }
+
+    async saveDoc(path) {
+        let des =  [
+            {
+                _obj: "save",
+                as: {
+                    _obj: "JPEG",
+                    extendedQuality: 12,
+                    matteColor: {
+                        _enum: "matteColor",
+                        _value: "none"
+                    }
+                },
+                in: {
+                    _path: await fileService.tokenify(path),
+                    _kind: "local"
+                },
+                documentID: 355,
+                copy: true,
+                lowerCase: true,
+                saveStage: {
+                    _enum: "saveStageType",
+                    _value: "saveBegin"
+                },
+                _options: {
+                    dialogOptions: "dontDisplay"
+                }
+            }
+        ]
+        return await this.execute(() => photoshop.action.batchPlay(des, {}));
+    }
+
+    async closeDocWithoutSaving(document){
+        let des =   [
+            {
+                _obj: "close",
+                saving: {
+                    _enum: "yesNo",
+                    _value: "no"
+                },
+                documentID: document.id,
                 _options: {
                     dialogOptions: "dontDisplay"
                 }

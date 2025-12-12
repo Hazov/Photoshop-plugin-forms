@@ -17,6 +17,7 @@ import loadingImg from '/src/images/loading.gif'
 import pluginSwitcherImg from '/src/images/pluginSwitcher.png'
 
 import {FillerApp} from "./FillerApp";
+import {PolaroidApp} from "./PolaroidApp";
 
 const photoshop = require('photoshop');
 const app = photoshop.app;
@@ -47,8 +48,9 @@ let itemOffsets = {};
 let itemTypesList = ['medal', 'plank', 'sign', 'grade', 'leftMedal', 'rightMedal'];
 let pluginParts = [
     {id: "formPluginPart", name: "Подстановка формы"},
-    {id: "creationPluginPart", name: "Шаблоны"},
-    {id: "fillerPluginPart", name: "Заполнитель"}
+    {id: "polaroidPluginPart", name: "Полароиды"},
+    // {id: "creationPluginPart", name: "Шаблоны"},
+    // {id: "fillerPluginPart", name: "Заполнитель"}
 ]
 
 let templates = templateService.getDefaultTemplates();
@@ -1577,6 +1579,8 @@ export const VoronaPlugin = () => {
                     return creationUi();
                 } else if (pluginPart === 'fillerPluginPart') {
                     return (<FillerApp/>)
+                } else if (pluginPart === 'polaroidPluginPart') {
+                    return (<PolaroidApp/>)
                 }
             })()}
         </div>

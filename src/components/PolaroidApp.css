@@ -1,0 +1,43 @@
+.file-list {
+    overflow: auto;
+    height: 100%;
+    width: 100%;
+    margin-top: 0;
+    border-radius: 10px;
+    background-color: #252525;
+}
+
+.select-menu{
+    overflow: auto;
+    height: 250px;
+    margin-top: 15px;
+    border-radius: 10px;
+    background-color: #252525;
+    width: 100%;
+}
+
+.select-images-btn {
+    margin-bottom: 0;
+    height: 45px;
+}
+
+.absolute-bottom {
+    position: absolute;
+    bottom: 50px;
+    left: 180px;
+}
+
+.polaroid-size-info, .files-info {
+    display: block;
+    font-size: 12px;
+    text-align: center;
+    padding-bottom: 10px;
+}
+
+.polaroid-size-info{
+    color: darkgray;
+}
+
+.files-info {
+    color: white;
+}

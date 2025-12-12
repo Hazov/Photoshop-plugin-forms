@@ -7,7 +7,6 @@ import clearImg from '/src/images/clear.png'
 import {PhotoshopService} from "../services/PhotoshopService";
 import {PsDocsMaker} from "../services/docs/PsDocsMaker";
 import {PsDocsA4Placer} from "../services/docs/PsDocsA4Placer";
-import {FillerApp} from "./FillerApp";
 
 const photoshopService = new PhotoshopService();
 const psDocsMaker = new PsDocsMaker()
@@ -342,7 +341,7 @@ export const VoronaDocs = () => {
                                         placeholder={angles[format.item.angle]}
                                         value={format.item.angle}>
                                         <sp-menu slot="options">
-                                            <sp-menu-item onClick={(e) => handleChangeFormat(idx, 'angle', e.target.value)} value="right" >Нет</sp-menu-item>
+                                            <sp-menu-item onClick={(e) => handleChangeFormat(idx, 'angle', e.target.value)} value="none" >Нет</sp-menu-item>
                                             <sp-menu-item onClick={(e) => handleChangeFormat(idx, 'angle', e.target.value)} value="right" >Правый</sp-menu-item>
                                             <sp-menu-item onClick={(e) => handleChangeFormat(idx, 'angle', e.target.value)} value="left" >Левый</sp-menu-item>
                                             <sp-menu-item onClick={(e) => handleChangeFormat(idx, 'angle', e.target.value)} value="oval" >Овал</sp-menu-item>
